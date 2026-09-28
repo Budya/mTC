@@ -31,6 +31,8 @@ protocol FilePanelDelegate: AnyObject {
     func filePanel(_ panel: FilePanelViewController, requestsPackOf targets: [FileItem])
     /// Распаковать архивы из `targets` в текущую папку (⌥F9 / контекстное меню).
     func filePanel(_ panel: FilePanelViewController, requestsExtractOf targets: [FileItem])
+    /// Открыли архив (Enter / двойной щелчок): спросить, распаковать или открыть программой.
+    func filePanel(_ panel: FilePanelViewController, requestsOpenOfArchive archive: FileItem)
     /// Удалить `targets` (F8 / ⇧F8 / контекстное меню).
     func filePanel(_ panel: FilePanelViewController, requestsDeletionOf targets: [FileItem], permanently: Bool)
 }
@@ -528,6 +530,8 @@ final class FilePanelViewController: NSViewController {
             goUp()
         case .directory:
             navigate(to: item.url)
+        case .file where ArchiveFormats.asksOnOpen(item.url):
+            delegate?.filePanel(self, requestsOpenOfArchive: item)
         case .package, .file:
             NSWorkspace.shared.open(item.url)
         }

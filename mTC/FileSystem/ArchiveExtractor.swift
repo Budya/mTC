@@ -7,6 +7,11 @@ enum ArchiveFormats {
         "iso", "cpio", "xar", "pkg", "cab", "lha", "lzh",
     ]
 
+    /// Спрашивать ли при открытии (Enter / двойной щелчок): установщики и образы дисков открываем как обычно.
+    static func asksOnOpen(_ url: URL) -> Bool {
+        isArchive(url) && !["pkg", "iso"].contains(url.pathExtension.lowercased())
+    }
+
     static func isArchive(_ url: URL) -> Bool {
         extensions.contains(url.pathExtension.lowercased())
     }

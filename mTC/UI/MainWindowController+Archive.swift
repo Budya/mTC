@@ -45,6 +45,29 @@ extension MainWindowController {
         operation.start()
     }
 
+    /// Enter / двойной щелчок по архиву: не отдаём его сразу системе (Finder распаковал бы молча), а спрашиваем.
+    func filePanel(_ panel: FilePanelViewController, requestsOpenOfArchive archive: FileItem) {
+        guard let window else { return }
+        let alert = NSAlert()
+        alert.messageText = "Архив «\(archive.name)»"
+        alert.informativeText = "Распаковать в текущую папку\n\(panel.directory.path)\nили открыть программой по умолчанию?"
+        alert.icon = NSWorkspace.shared.icon(forFile: archive.url.path)
+        alert.addButton(withTitle: "Распаковать сюда")
+        alert.addButton(withTitle: "Открыть программой")
+        alert.addCancelButton()
+        alert.beginSheetModal(for: window) { [weak self] response in
+            switch response {
+            case .alertFirstButtonReturn:
+                self?.filePanel(panel, requestsExtractOf: [archive])
+            case .alertSecondButtonReturn:
+                NSWorkspace.shared.open(archive.url)
+                panel.focus()
+            default:
+                panel.focus()
+            }
+        }
+    }
+
     private static func askArchivePassword(_ name: String, retry: Bool, on window: NSWindow, reply: @escaping (String?) -> Void) {
         let alert = NSAlert()
         alert.messageText = retry ? "Неверный пароль для «\(name)»" : "Архив «\(name)» защищён паролем"
