@@ -48,6 +48,8 @@ enum PanelCommand: String {
     case closeTab
     /// Окно поиска файлов.
     case search
+    /// Отметить в обеих панелях отличающиеся файлы.
+    case compareDirectories
     /// Глобальная клавиша: регистрируется в системе, в панели не обрабатывается.
     case showHideWindow
 }

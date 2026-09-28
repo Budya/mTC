@@ -363,7 +363,7 @@ final class FilePanelViewController: NSViewController {
             if let item = item(at: tableView.selectedRow), item.isContainer {
                 delegate?.filePanel(self, requestsNewTabWith: item.url)
             }
-        case .refresh, .toggleHiddenFiles, .newTab, .closeTab, .search, .showHideWindow:
+        case .refresh, .toggleHiddenFiles, .newTab, .closeTab, .search, .compareDirectories, .showHideWindow:
             delegate?.filePanel(self, performWindowCommand: command)
         case .quickLook: togglePreview()
         case .edit: delegate?.filePanel(self, requestsEditOf: operationTargets())
@@ -738,6 +738,16 @@ final class FilePanelViewController: NSViewController {
     /// Перечитывает папку и ставит курсор на файл (например, только что созданный).
     func select(named name: String) {
         navigate(to: directory, selecting: name, fallbackRow: tableView.selectedRow, reportErrors: false)
+    }
+
+    /// Содержимое папки в том виде, как показано (без «..», с учётом скрытых).
+    var listedItems: [FileItem] {
+        items.filter { $0.kind != .parent }
+    }
+
+    /// Заменяет отметки (сравнение папок).
+    func replaceMarks(with names: Set<String>) {
+        setMarks(names)
     }
 
     /// Снимает выделение с файлов (например, после успешного копирования).

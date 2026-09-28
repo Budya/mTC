@@ -64,6 +64,8 @@ enum MainMenu {
         markMenu.addItem(.separator())
         markMenu.addItem(item(.markAll, #selector(MainWindowController.markAll(_:))))
         markMenu.addItem(item(.unmarkAll, #selector(MainWindowController.unmarkAll(_:))))
+        markMenu.addItem(.separator())
+        markMenu.addItem(item(.compareDirectories, #selector(MainWindowController.compareDirectories(_:)), title: "Сравнить папки"))
 
         let goMenu = submenu(in: mainMenu, title: "Переход")
         goMenu.addItem(item(.goBack, #selector(MainWindowController.goBack(_:))))

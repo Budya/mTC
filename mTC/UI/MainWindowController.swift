@@ -176,6 +176,35 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     @objc func editPath(_ sender: Any?) { panel(for: activeSide).perform(.editPath) }
 
     /// F3 / ⌘Y: просмотр (Quick Look).
+    /// ⇧F2 / ⌥⌘C: отметить в обеих панелях то, чего нет на другой стороне или что новее.
+    @objc func compareDirectories(_ sender: Any?) {
+        let left = leftPanel, right = rightPanel
+        let active = panel(for: activeSide)
+        if left.directory.resolvingSymlinksInPath() == right.directory.resolvingSymlinksInPath() {
+            showCompareMessage("В обеих панелях открыта одна и та же папка", details: "Откройте в другой панели папку, с которой нужно сравнить.")
+            return
+        }
+        let result = DirectoryComparison.compare(left: left.listedItems, right: right.listedItems)
+        left.replaceMarks(with: result.left)
+        right.replaceMarks(with: result.right)
+        if result.identical {
+            showCompareMessage("Папки одинаковые", details: "Все файлы есть с обеих сторон, размер и время изменения совпадают. Вложенные папки не сравнивались.")
+        }
+        active.focus()
+    }
+
+    private func showCompareMessage(_ message: String, details: String) {
+        guard let window else { return }
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.informativeText = details
+        alert.addButton(withTitle: "OK").keyEquivalent = "\r"
+        alert.beginSheetModal(for: window) { [weak self] _ in
+            guard let self else { return }
+            self.panel(for: self.activeSide).focus()
+        }
+    }
+
     /// ⌥F7 / ⌘F: окно поиска, «Искать в» — папка активной панели.
     @objc func showSearch(_ sender: Any?) {
         let search = searchWindow ?? {
@@ -398,6 +427,7 @@ extension MainWindowController: FilePanelDelegate {
         case .newTab: newTab(nil)
         case .closeTab: closeTab(nil)
         case .search: showSearch(nil)
+        case .compareDirectories: compareDirectories(nil)
         default: break
         }
     }

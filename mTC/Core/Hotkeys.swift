@@ -50,6 +50,7 @@ enum CommandCatalog {
         CommandInfo(command: .deletePermanently, title: "Удалить насовсем", category: "Файлы", defaults: ["shift+f8", "shift+delete", "alt+cmd+backspace"]),
 
         CommandInfo(command: .search, title: "Поиск файлов", category: "Файлы", defaults: ["alt+f7", "cmd+f"]),
+        CommandInfo(command: .compareDirectories, title: "Сравнить папки", category: "Выделение", defaults: ["shift+f2", "alt+cmd+c"]),
 
         CommandInfo(command: .createArchive, title: "Упаковать", category: "Архивы", defaults: ["alt+f5", "alt+cmd+a"]),
         CommandInfo(command: .extractArchive, title: "Распаковать сюда", category: "Архивы", defaults: ["alt+f9", "alt+cmd+x"]),
