@@ -54,7 +54,7 @@ final class DriveBar: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) не поддерживается") }
 
     /// Перестраивает список томов и показывает, где сейчас панель:
-    /// «Домашняя папка» внутри неё, «Корень /» в самом `/`, иначе — том папки.
+    /// «Home» внутри неё, «Root» в самом `/`, иначе — том папки.
     func update(volumes: [Volume], directory: URL, capacity: VolumeCapacity?) {
         if volumes != self.volumes || popup.menu?.items.isEmpty != false {
             self.volumes = volumes
@@ -95,12 +95,12 @@ final class DriveBar: NSView {
         }
         menu.addItem(.separator())
 
-        let home = NSMenuItem(title: "Домашняя папка", action: nil, keyEquivalent: "")
+        let home = NSMenuItem(title: "Home", action: nil, keyEquivalent: "")
         home.image = NSImage(systemSymbolName: "house", accessibilityDescription: nil)
         home.tag = Self.homeTag
         menu.addItem(home)
 
-        let root = NSMenuItem(title: "Корень /", action: nil, keyEquivalent: "")
+        let root = NSMenuItem(title: "Root", action: nil, keyEquivalent: "")
         root.image = NSImage(systemSymbolName: "externaldrive", accessibilityDescription: nil)
         root.tag = Self.rootTag
         menu.addItem(root)
