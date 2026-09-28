@@ -1,7 +1,7 @@
 import AppKit
 
 /// Главное окно с двумя панелями.
-final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitViewDelegate {
+final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitViewDelegate, NSMenuItemValidation {
     let settings: JSONStore<AppSettings>
     private let state: JSONStore<AppState>
     private let splitView = NSSplitView()
@@ -11,6 +11,8 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     private var rightPanel: FilePanelViewController { rightSide.panel }
     private var activeSide: PanelSide
     private var didRestoreSplit = false
+    /// Кнопка-переключатель скрытых файлов справа на панели F-кнопок.
+    private let hiddenFilesButton = NSButton()
 
     init(settings: JSONStore<AppSettings>, state: JSONStore<AppState>) {
         self.settings = settings
@@ -50,7 +52,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
             .init(title: "F6 Переместить", action: #selector(moveToOtherPanel(_:))),
             .init(title: "F7 Новая папка", action: #selector(newDirectory(_:))),
             .init(title: "F8 Удалить", action: #selector(moveToTrash(_:))),
-        ], target: self)
+        ], target: self, accessories: [hiddenFilesButton])
 
         let content = NSStackView(views: [splitView, keyBar])
         content.orientation = .vertical
@@ -70,6 +72,15 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
                 self.saveTabs(of: side)
             }
         }
+
+        hiddenFilesButton.setButtonType(.pushOnPushOff)
+        hiddenFilesButton.bezelStyle = .flexiblePush
+        hiddenFilesButton.controlSize = .small
+        hiddenFilesButton.refusesFirstResponder = true
+        hiddenFilesButton.target = self
+        hiddenFilesButton.action = #selector(toggleHiddenFiles(_:))
+        hiddenFilesButton.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        updateHiddenFilesButton()
 
         restoreFrame()
         leftSide.restore(state.value.leftTabs, legacyPath: state.value.leftPath)
@@ -91,9 +102,31 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
         panel(for: activeSide).focus()
     }
 
-    func setShowHiddenFiles(_ show: Bool) {
+    /// Кнопка на панели, «Вид → Показывать скрытые файлы», ⌘⇧.
+    @objc func toggleHiddenFiles(_ sender: Any?) {
+        settings.update { $0.showHiddenFiles.toggle() }
+        let show = settings.value.showHiddenFiles
         leftPanel.showHiddenFiles = show
         rightPanel.showHiddenFiles = show
+        updateHiddenFilesButton()
+        panel(for: activeSide).focus()
+    }
+
+    private func updateHiddenFilesButton() {
+        let show = settings.value.showHiddenFiles
+        hiddenFilesButton.state = show ? .on : .off
+        hiddenFilesButton.image = NSImage(
+            systemSymbolName: show ? "eye" : "eye.slash",
+            accessibilityDescription: show ? "Скрытые файлы показаны" : "Скрытые файлы скрыты"
+        )
+        hiddenFilesButton.toolTip = (show ? "Скрыть скрытые файлы" : "Показать скрытые файлы") + " (⌘⇧.)"
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleHiddenFiles(_:)) {
+            menuItem.state = settings.value.showHiddenFiles ? .on : .off
+        }
+        return true
     }
 
     @objc func refreshPanels(_ sender: Any?) {

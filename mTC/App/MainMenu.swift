@@ -78,8 +78,8 @@ enum MainMenu {
         goMenu.addItem(withTitle: "Ввести путь…", action: #selector(MainWindowController.editPath(_:)), keyEquivalent: "l")
 
         let viewMenu = submenu(in: mainMenu, title: "Вид")
-        viewMenu.addItem(withTitle: "Показывать скрытые файлы", action: #selector(AppDelegate.toggleHiddenFiles(_:)), keyEquivalent: ".")
-            .keyEquivalentModifierMask = [.command, .shift]
+        // «>» уже означает Shift+«.», поэтому модификатор только ⌘ (как «}» для ⌘⇧]).
+        viewMenu.addItem(withTitle: "Показывать скрытые файлы", action: #selector(MainWindowController.toggleHiddenFiles(_:)), keyEquivalent: ">")
         viewMenu.addItem(withTitle: "Обновить", action: #selector(MainWindowController.refreshPanels(_:)), keyEquivalent: "r")
 
         let windowMenu = submenu(in: mainMenu, title: "Окно")

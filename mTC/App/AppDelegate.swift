@@ -107,8 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     @objc func toggleHiddenFiles(_ sender: Any?) {
-        settings.update { $0.showHiddenFiles.toggle() }
-        mainWindow.setShowHiddenFiles(settings.value.showHiddenFiles)
+        mainWindow.toggleHiddenFiles(sender)
     }
 
     @objc func toggleLaunchAtLogin(_ sender: Any?) {

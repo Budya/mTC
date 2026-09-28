@@ -1,6 +1,7 @@
 import AppKit
 
-/// Кнопки F-клавиш внизу окна, как в Total Commander.
+/// Кнопки F-клавиш внизу окна, как в Total Commander, и справа — дополнительные кнопки
+/// (например, переключатель скрытых файлов).
 /// Ещё не реализованные операции показаны неактивными.
 final class FunctionKeyBar: NSView {
     struct Key {
@@ -8,7 +9,7 @@ final class FunctionKeyBar: NSView {
         let action: Selector?
     }
 
-    init(keys: [Key], target: AnyObject) {
+    init(keys: [Key], target: AnyObject, accessories: [NSView] = []) {
         super.init(frame: .zero)
 
         let buttons = keys.map { key -> NSButton in
@@ -21,10 +22,16 @@ final class FunctionKeyBar: NSView {
             return button
         }
 
-        let stack = NSStackView(views: buttons)
+        let keysStack = NSStackView(views: buttons)
+        keysStack.orientation = .horizontal
+        keysStack.distribution = .fillEqually
+        keysStack.spacing = 4
+        keysStack.setHuggingPriority(.defaultLow, for: .horizontal)
+
+        let stack = NSStackView(views: [keysStack] + accessories)
         stack.orientation = .horizontal
-        stack.distribution = .fillEqually
-        stack.spacing = 4
+        stack.distribution = .fill
+        stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
