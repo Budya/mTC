@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
 
+        Self.clearSystemPreferences()
         var location = DataLocation.resolve()
         if location.canPersist {
             instanceLock = InstanceLock(directory: location.directory)
@@ -77,6 +78,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         mainWindow?.saveState()
         settings?.flush()
         state?.flush()
+        Self.clearSystemPreferences()
+        Self.removeEmptyPreferencesFileAfterExit()
+    }
+
+    /// Свои данные mTC хранит только в `mTC-data/`, но системные окна (выбор папки, «Другая программа…»)
+    /// сами пишут в `~/Library/Preferences/<bundle id>.plist` размер окна и последнюю папку.
+    /// Стираем этот домен при выходе и при запуске. Пустой файл система дописывает уже после выхода —
+    /// его удаляет `removeEmptyPreferencesFileAfterExit`, а если не успел — следующий запуск.
+    private static func clearSystemPreferences() {
+        guard let domain = Bundle.main.bundleIdentifier else { return }
+        UserDefaults.standard.removePersistentDomain(forName: domain)
+        UserDefaults.standard.synchronize()
+        let file = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Preferences/\(domain).plist")
+        if let values = NSDictionary(contentsOf: file), values.count == 0 {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    /// Пустой `.plist` система пишет, когда mTC уже завершился, поэтому удаляет его фоновая команда:
+    /// 10 секунд проверяет файл (система пишет его секунды через три) и удаляет, только если он пустой (`{}`). Файл с данными — например,
+    /// если за это время снова запустили mTC — не трогает.
+    private static func removeEmptyPreferencesFileAfterExit() {
+        guard let domain = Bundle.main.bundleIdentifier else { return }
+        let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Preferences/\(domain).plist")
+        let script = """
+            for i in $(seq 20); do
+                sleep 0.5
+                if [ -f "$1" ] && [ "$(/usr/bin/plutil -convert json -o - "$1" 2>/dev/null)" = "{}" ]; then rm -f "$1"; fi
+            done
+            """
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", script, "mtc-cleanup", file.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
