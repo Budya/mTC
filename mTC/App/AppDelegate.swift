@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         NSApp.mainMenu = MainMenu.build()
         applyDockPolicy()
+        applyTheme()
         statusBar = StatusBarController(target: self)
         FileColors.shared = FileColors(rules: settings.value.fileColors)
         for problem in FileColors.shared.invalidRules {
@@ -116,6 +117,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    @objc func selectTheme(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let theme = AppTheme(rawValue: raw) else { return }
+        settings.update { $0.theme = theme }
+        applyTheme()
+    }
+
     @objc func toggleHiddenFiles(_ sender: Any?) {
         mainWindow.toggleHiddenFiles(sender)
     }
@@ -157,6 +164,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         switch menuItem.action {
         case #selector(toggleShowInDock(_:)):
             menuItem.state = settings.value.showInDock ? .on : .off
+        case #selector(selectTheme(_:)):
+            menuItem.state = menuItem.representedObject as? String == settings.value.theme.rawValue ? .on : .off
         case #selector(toggleHiddenFiles(_:)):
             menuItem.state = settings.value.showHiddenFiles ? .on : .off
         case #selector(toggleLaunchAtLogin(_:)):
@@ -171,6 +180,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     // MARK: - Внутреннее
+
+    /// `nil` — оформление как в системе (и переключается вместе с ней).
+    private func applyTheme() {
+        switch settings.value.theme {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
 
     private func applyDockPolicy() {
         NSApp.setActivationPolicy(settings.value.showInDock ? .regular : .accessory)

@@ -13,6 +13,20 @@ struct AppSettings: Codable {
     var editor = ""
     /// Раскраска файлов по маскам (`FileColorRule`): первое совпавшее правило. Пустой список — без цвета.
     var fileColors = FileColorRule.defaults
+    /// Тема оформления: как в системе, светлая или тёмная.
+    var theme = AppTheme.system
+}
+
+enum AppTheme: String, Codable, CaseIterable {
+    case system, light, dark
+
+    var title: String {
+        switch self {
+        case .system: return "Как в системе"
+        case .light: return "Светлая"
+        case .dark: return "Тёмная"
+        }
+    }
 }
 
 /// `mTC-data/state.json`: то, что приложение запоминает само.

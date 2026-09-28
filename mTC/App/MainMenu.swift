@@ -77,6 +77,13 @@ enum MainMenu {
         let viewMenu = submenu(in: mainMenu, title: "Вид")
         viewMenu.addItem(item(.toggleHiddenFiles, #selector(MainWindowController.toggleHiddenFiles(_:)), title: "Показывать скрытые файлы"))
         viewMenu.addItem(item(.refresh, #selector(MainWindowController.refreshPanels(_:))))
+        viewMenu.addItem(.separator())
+        let themeMenu = submenu(in: viewMenu, title: "Тема")
+        for theme in AppTheme.allCases {
+            let themeItem = NSMenuItem(title: theme.title, action: #selector(AppDelegate.selectTheme(_:)), keyEquivalent: "")
+            themeItem.representedObject = theme.rawValue
+            themeMenu.addItem(themeItem)
+        }
 
         let windowMenu = submenu(in: mainMenu, title: "Окно")
         windowMenu.addItem(withTitle: "Свернуть", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
