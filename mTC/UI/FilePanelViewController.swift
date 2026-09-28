@@ -294,6 +294,7 @@ final class FilePanelViewController: NSViewController {
         tableView.onCommand = { [weak self] command in self?.perform(command) }
         tableView.onToggleMarkAtRow = { [weak self] row in self?.toggleMark(at: row, moveBy: 0) }
         tableView.onExtendRangeToRow = { [weak self] row in self?.extendRange(to: row) }
+        tableView.onPlainClick = { [weak self] in self?.setMarks([]) }
         tableView.onContextMenu = { [weak self] row in self?.contextMenu(forRow: row) }
         tableView.dragURLsForRow = { [weak self] row in self?.dragURLs(forRow: row) }
         tableView.onMiddleClick = { [weak self] row in

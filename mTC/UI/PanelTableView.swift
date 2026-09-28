@@ -11,6 +11,8 @@ final class PanelTableView: NSTableView {
     var onExtendRangeToRow: ((Int) -> Void)?
     /// Правый клик / ⌃-клик: меню для строки (`-1` — пустое место).
     var onContextMenu: ((Int) -> NSMenu?)?
+    /// Обычный клик без модификаторов (не перетаскивание): снять отметки. Курсор ставит сама таблица.
+    var onPlainClick: (() -> Void)?
     /// Средний клик по строке (папку — открыть в новой вкладке).
     var onMiddleClick: ((Int) -> Void)?
     /// Что тащить, если потянуть за строку: для выделенного файла — все выделенные.
@@ -30,6 +32,7 @@ final class PanelTableView: NSTableView {
         let modifiers = event.modifierFlags.intersection([.command, .shift])
         guard !modifiers.isEmpty else {
             if event.clickCount == 1, !dragMarkedFiles(from: event) {
+                onPlainClick?()
                 super.mouseDown(with: event)
             } else if event.clickCount > 1 {
                 super.mouseDown(with: event)
@@ -47,7 +50,7 @@ final class PanelTableView: NSTableView {
     }
 
     /// Нажали на выделенный файл, когда выделено несколько: ждём, потянут или просто кликнут.
-    /// Потянули — тащим все выделенные; отпустили — ставим курсор на строку. Возвращает `false`,
+    /// Потянули — тащим все выделенные; отпустили — снимаем отметки и ставим курсор на строку. Возвращает `false`,
     /// если этот случай не наш и нажатие надо отдать таблице.
     private func dragMarkedFiles(from event: NSEvent) -> Bool {
         let clickedRow = row(at: convert(event.locationInWindow, from: nil))
@@ -57,6 +60,7 @@ final class PanelTableView: NSTableView {
         let start = event.locationInWindow
         while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
             if next.type == .leftMouseUp {
+                onPlainClick?()
                 selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
                 return true
             }
