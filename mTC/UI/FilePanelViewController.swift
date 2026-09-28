@@ -1274,6 +1274,7 @@ extension FilePanelViewController: QLPreviewPanelDataSource, QLPreviewPanelDeleg
         // orderFront, а не makeKey: главное окно остаётся активным, стрелки двигают курсор в панели.
         panel.orderFront(nil)
         panel.updateController()
+        QuickLookShareHider.apply(to: panel)
     }
 
     func closePreview() {
@@ -1303,6 +1304,7 @@ extension FilePanelViewController: QLPreviewPanelDataSource, QLPreviewPanelDeleg
         if panel.currentPreviewItemIndex != index {
             panel.currentPreviewItemIndex = index
         }
+        QuickLookShareHider.apply(to: panel)
     }
 
     override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
