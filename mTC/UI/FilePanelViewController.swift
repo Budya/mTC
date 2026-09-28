@@ -363,7 +363,7 @@ final class FilePanelViewController: NSViewController {
             if let item = item(at: tableView.selectedRow), item.isContainer {
                 delegate?.filePanel(self, requestsNewTabWith: item.url)
             }
-        case .refresh, .toggleHiddenFiles, .newTab, .closeTab, .showHideWindow:
+        case .refresh, .toggleHiddenFiles, .newTab, .closeTab, .search, .showHideWindow:
             delegate?.filePanel(self, performWindowCommand: command)
         case .quickLook: togglePreview()
         case .edit: delegate?.filePanel(self, requestsEditOf: operationTargets())

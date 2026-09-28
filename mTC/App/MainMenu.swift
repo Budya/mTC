@@ -25,6 +25,8 @@ enum MainMenu {
         appMenu.addItem(withTitle: "Выйти из mTC", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let fileMenu = submenu(in: mainMenu, title: "Файл")
+        fileMenu.addItem(item(.search, #selector(MainWindowController.showSearch(_:)), title: "Поиск файлов…"))
+        fileMenu.addItem(.separator())
         fileMenu.addItem(item(.quickLook, #selector(MainWindowController.quickLook(_:))))
         let openWith = NSMenuItem(title: "Открыть с помощью", action: nil, keyEquivalent: "")
         let openWithMenu = NSMenu(title: "Открыть с помощью")

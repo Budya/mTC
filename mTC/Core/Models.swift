@@ -49,6 +49,8 @@ struct AppState: Codable {
     var lastArchiveKind = ArchiveKind.zip
     var archiveToOtherPanel = false
     var lastZipEncryption = ZipEncryption.zipCrypto
+    /// Последние условия в окне поиска.
+    var lastSearch = SearchQuery()
 }
 
 /// Вкладки одной панели в `state.json`.

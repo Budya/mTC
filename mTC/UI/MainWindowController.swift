@@ -14,6 +14,8 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     /// Кнопка-переключатель скрытых файлов справа на панели F-кнопок.
     private let hiddenFilesButton = NSButton()
     private var keyBar: FunctionKeyBar!
+    /// Окно поиска создаётся при первом ⌥F7 и живёт до выхода — с результатами.
+    private var searchWindow: SearchWindowController?
 
     init(settings: JSONStore<AppSettings>, state: JSONStore<AppState>) {
         self.settings = settings
@@ -174,6 +176,29 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     @objc func editPath(_ sender: Any?) { panel(for: activeSide).perform(.editPath) }
 
     /// F3 / ⌘Y: просмотр (Quick Look).
+    /// ⌥F7 / ⌘F: окно поиска, «Искать в» — папка активной панели.
+    @objc func showSearch(_ sender: Any?) {
+        let search = searchWindow ?? {
+            let controller = SearchWindowController(query: state.value.lastSearch)
+            controller.onQueryUsed = { [weak self] query in self?.state.update { $0.lastSearch = query } }
+            controller.onReveal = { [weak self] hit in self?.reveal(hit) }
+            searchWindow = controller
+            return controller
+        }()
+        search.show(root: panel(for: activeSide).directory, over: window)
+    }
+
+    /// Найденное — в активной панели: папка находки, курсор на ней. Скрытый файл — включаем показ скрытых.
+    private func reveal(_ hit: SearchHit) {
+        let panel = panel(for: activeSide)
+        if hit.isHidden, !settings.value.showHiddenFiles {
+            toggleHiddenFiles(nil)
+        }
+        guard panel.navigate(to: hit.url.deletingLastPathComponent(), selecting: hit.url.lastPathComponent) else { return }
+        window?.makeKeyAndOrderFront(nil)
+        panel.focus()
+    }
+
     @objc func quickLook(_ sender: Any?) {
         panel(for: activeSide).perform(.quickLook)
     }
@@ -372,6 +397,7 @@ extension MainWindowController: FilePanelDelegate {
         case .toggleHiddenFiles: toggleHiddenFiles(nil)
         case .newTab: newTab(nil)
         case .closeTab: closeTab(nil)
+        case .search: showSearch(nil)
         default: break
         }
     }

@@ -46,6 +46,8 @@ enum PanelCommand: String {
     case toggleHiddenFiles
     case newTab
     case closeTab
+    /// Окно поиска файлов.
+    case search
     /// Глобальная клавиша: регистрируется в системе, в панели не обрабатывается.
     case showHideWindow
 }
