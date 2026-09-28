@@ -19,6 +19,10 @@ protocol FilePanelDelegate: AnyObject {
     func filePanel(_ panel: FilePanelViewController, requestsEditOf targets: [FileItem])
     /// ⇧F4: спросить имя нового файла.
     func filePanelRequestsNewFile(_ panel: FilePanelViewController)
+    /// ⌘↵ / средний клик по папке: открыть её в новой вкладке.
+    func filePanel(_ panel: FilePanelViewController, requestsNewTabWith directory: URL)
+    /// ⌘\\: папка другой панели (перейти в неё).
+    func filePanelOppositeDirectory(_ panel: FilePanelViewController) -> URL?
     /// Файлы перетащили в панель (из другой панели или из Finder).
     func filePanel(_ panel: FilePanelViewController, requestsDropOf urls: [URL], into directory: URL, move: Bool)
     /// Удалить `targets` (F8 / ⇧F8 / контекстное меню).
@@ -32,10 +36,18 @@ struct PanelTab {
     var marked: Set<String> = []
     var sortKey: SortKey = .name
     var sortAscending = true
+    var back: [HistoryEntry] = []
+    var forward: [HistoryEntry] = []
 
     var title: String {
         directory.path == "/" ? "/" : directory.lastPathComponent
     }
+}
+
+/// Запись истории переходов: папка и файл, на котором стоял курсор.
+struct HistoryEntry {
+    var directory: URL
+    var cursorName: String?
 }
 
 /// Одна файловая панель: путь сверху, список файлов, строка состояния снизу.
@@ -101,8 +113,17 @@ final class FilePanelViewController: NSViewController {
     private var currentVolume: URL?
     private var volumeObservers: [NSObjectProtocol] = []
 
+    /// История переходов (⌘[ / ⌘]) — у каждой вкладки своя, хранится в `PanelTab`.
+    private var backStack: [HistoryEntry] = []
+    private var forwardStack: [HistoryEntry] = []
+    private static let historyLimit = 100
+
     private let headerBox = NSBox()
     private let pathLabel = NSTextField(labelWithString: "")
+    /// Поле ввода пути (⌘L или клик по строке пути), поверх `pathLabel`.
+    private let pathField = NSTextField(string: "")
+    private let backButton = NSButton()
+    private let forwardButton = NSButton()
     private let scrollView = NSScrollView()
     private let tableView = PanelTableView()
     private let statusLabel = NSTextField(labelWithString: "")
@@ -148,8 +169,37 @@ final class FilePanelViewController: NSViewController {
 
         pathLabel.lineBreakMode = .byTruncatingHead
         pathLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
-        pathLabel.translatesAutoresizingMaskIntoConstraints = false
-        headerBox.contentView?.addSubview(pathLabel)
+        pathLabel.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(pathLabelClicked)))
+        pathLabel.toolTip = "Нажмите, чтобы ввести путь (⌘L)"
+
+        pathField.font = pathLabel.font
+        pathField.isBordered = false
+        pathField.focusRingType = .none
+        pathField.drawsBackground = true
+        pathField.backgroundColor = .textBackgroundColor
+        pathField.textColor = .textColor
+        pathField.lineBreakMode = .byTruncatingHead
+        pathField.cell?.isScrollable = true
+        pathField.delegate = self
+        pathField.isHidden = true
+
+        for (button, symbol, tip, action) in [
+            (backButton, "chevron.left", "Назад (⌘[)", #selector(backClicked)),
+            (forwardButton, "chevron.right", "Вперёд (⌘])", #selector(forwardClicked)),
+        ] {
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)?
+                .withSymbolConfiguration(.init(pointSize: 10, weight: .semibold))
+            button.isBordered = false
+            button.refusesFirstResponder = true
+            button.toolTip = tip
+            button.target = self
+            button.action = action
+        }
+
+        for subview in [backButton, forwardButton, pathLabel, pathField] {
+            subview.translatesAutoresizingMaskIntoConstraints = false
+            headerBox.contentView?.addSubview(subview)
+        }
 
         configureTable()
         scrollView.documentView = tableView
@@ -171,9 +221,20 @@ final class FilePanelViewController: NSViewController {
 
         if let headerContent = headerBox.contentView {
             NSLayoutConstraint.activate([
-                pathLabel.leadingAnchor.constraint(equalTo: headerContent.leadingAnchor, constant: 6),
+                backButton.leadingAnchor.constraint(equalTo: headerContent.leadingAnchor, constant: 4),
+                backButton.centerYAnchor.constraint(equalTo: headerContent.centerYAnchor),
+                backButton.widthAnchor.constraint(equalToConstant: 16),
+                forwardButton.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 2),
+                forwardButton.centerYAnchor.constraint(equalTo: headerContent.centerYAnchor),
+                forwardButton.widthAnchor.constraint(equalToConstant: 16),
+
+                pathLabel.leadingAnchor.constraint(equalTo: forwardButton.trailingAnchor, constant: 6),
                 pathLabel.trailingAnchor.constraint(equalTo: headerContent.trailingAnchor, constant: -6),
                 pathLabel.centerYAnchor.constraint(equalTo: headerContent.centerYAnchor),
+
+                pathField.leadingAnchor.constraint(equalTo: pathLabel.leadingAnchor, constant: -2),
+                pathField.trailingAnchor.constraint(equalTo: headerContent.trailingAnchor, constant: -3),
+                pathField.centerYAnchor.constraint(equalTo: headerContent.centerYAnchor),
             ])
         }
 
@@ -227,6 +288,10 @@ final class FilePanelViewController: NSViewController {
         tableView.onExtendRangeToRow = { [weak self] row in self?.extendRange(to: row) }
         tableView.onContextMenu = { [weak self] row in self?.contextMenu(forRow: row) }
         tableView.dragURLsForRow = { [weak self] row in self?.dragURLs(forRow: row) }
+        tableView.onMiddleClick = { [weak self] row in
+            guard let self, let item = self.item(at: row), item.isContainer else { return }
+            self.delegate?.filePanel(self, requestsNewTabWith: item.url)
+        }
 
         // Перетаскивание: внутри mTC — копия (с ⌘ — перемещение); наружу (Finder и др.) — только копия.
         tableView.registerForDraggedTypes([.fileURL])
@@ -254,6 +319,9 @@ final class FilePanelViewController: NSViewController {
     private func updateActiveAppearance() {
         headerBox.fillColor = isActive ? .controlAccentColor : .quaternaryLabelColor
         pathLabel.textColor = isActive ? .alternateSelectedControlTextColor : .labelColor
+        for button in [backButton, forwardButton] {
+            button.contentTintColor = isActive ? .alternateSelectedControlTextColor : .secondaryLabelColor
+        }
     }
 
     // MARK: - Команды
@@ -275,6 +343,17 @@ final class FilePanelViewController: NSViewController {
         case .nextTab: delegate?.filePanel(self, requestsTabOffset: 1)
         case .previousTab: delegate?.filePanel(self, requestsTabOffset: -1)
         case .makeDirectory: delegate?.filePanelRequestsNewDirectory(self)
+        case .goBack: goBack()
+        case .goForward: goForward()
+        case .goHome: navigate(to: FileManager.default.homeDirectoryForCurrentUser)
+        case .goToVolumeRoot: navigate(to: currentVolume ?? URL(fileURLWithPath: "/"))
+        case .goToOppositeDirectory:
+            if let other = delegate?.filePanelOppositeDirectory(self) { navigate(to: other) }
+        case .editPath: beginPathEditing()
+        case .openInNewTab:
+            if let item = item(at: tableView.selectedRow), item.isContainer {
+                delegate?.filePanel(self, requestsNewTabWith: item.url)
+            }
         case .quickLook: togglePreview()
         case .edit: delegate?.filePanel(self, requestsEditOf: operationTargets())
         case .newFile: delegate?.filePanelRequestsNewFile(self)
@@ -299,7 +378,9 @@ final class FilePanelViewController: NSViewController {
             cursorName: item(at: tableView.selectedRow)?.name,
             marked: marked,
             sortKey: sortKey,
-            sortAscending: sortAscending
+            sortAscending: sortAscending,
+            back: backStack,
+            forward: forwardStack
         )
     }
 
@@ -315,9 +396,12 @@ final class FilePanelViewController: NSViewController {
         while !FileManager.default.fileExists(atPath: target.path), target.path != "/" {
             target = target.deletingLastPathComponent()
         }
-        if !navigate(to: target, selecting: tab.cursorName, reportErrors: false) {
-            navigate(to: FileManager.default.homeDirectoryForCurrentUser, reportErrors: false)
+        if !navigate(to: target, selecting: tab.cursorName, reportErrors: false, recordHistory: false) {
+            navigate(to: FileManager.default.homeDirectoryForCurrentUser, reportErrors: false, recordHistory: false)
         }
+        backStack = tab.back
+        forwardStack = tab.forward
+        updateHistoryButtons()
 
         marked = target == tab.directory ? tab.marked.intersection(allNames) : []
         rangeBase = nil
@@ -331,7 +415,7 @@ final class FilePanelViewController: NSViewController {
     /// При повторном открытии той же папки (обновлении) отметки и посчитанные размеры сохраняются.
     /// `fallbackRow` — куда поставить курсор, если файла `name` больше нет.
     @discardableResult
-    func navigate(to url: URL, selecting name: String? = nil, fallbackRow: Int = 0, reportErrors: Bool = true) -> Bool {
+    func navigate(to url: URL, selecting name: String? = nil, fallbackRow: Int = 0, reportErrors: Bool = true, recordHistory: Bool = true) -> Bool {
         _ = view
         let target = url.standardizedFileURL
         let listed: [FileItem]
@@ -347,6 +431,11 @@ final class FilePanelViewController: NSViewController {
             marked.formIntersection(names)
             directorySizes = directorySizes.filter { names.contains($0.key) }
         } else {
+            if recordHistory, isViewLoaded, !items.isEmpty {
+                backStack.append(HistoryEntry(directory: directory, cursorName: item(at: tableView.selectedRow)?.name))
+                if backStack.count > Self.historyLimit { backStack.removeFirst() }
+                forwardStack.removeAll()
+            }
             marked.removeAll()
             directorySizes.removeAll()
             sizingInProgress.removeAll()
@@ -368,6 +457,7 @@ final class FilePanelViewController: NSViewController {
             lastDirectoryByVolume[currentVolume] = target
         }
         refreshDriveBar()
+        updateHistoryButtons()
         delegate?.filePanelDidChangeDirectory(self)
         return true
     }
@@ -395,9 +485,9 @@ final class FilePanelViewController: NSViewController {
             )
         } else if currentVolume != nil, Volumes.volumeURL(containing: target) != currentVolume {
             // Папка пропала вместе с диском (его отключили) — уходим в домашнюю папку.
-            navigate(to: FileManager.default.homeDirectoryForCurrentUser, reportErrors: false)
+            navigate(to: FileManager.default.homeDirectoryForCurrentUser, reportErrors: false, recordHistory: false)
         } else {
-            navigate(to: target, selecting: cameFrom, reportErrors: false)
+            navigate(to: target, selecting: cameFrom, reportErrors: false, recordHistory: false)
         }
     }
 
@@ -690,6 +780,12 @@ final class FilePanelViewController: NSViewController {
 
         if targets.count == 1, let target = targets.first {
             menu.addItem(ActionMenuItem("Открыть") { [weak self] in self?.open(target) })
+            if target.kind == .directory {
+                menu.addItem(ActionMenuItem("Открыть в новой вкладке  (⌘↵)") { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.filePanel(self, requestsNewTabWith: target.url)
+                })
+            }
         }
         if !targets.isEmpty {
             let openWith = NSMenuItem(title: "Открыть с помощью", action: nil, keyEquivalent: "")
@@ -1100,6 +1196,9 @@ extension FilePanelViewController: NSTableViewDataSource, NSTableViewDelegate {
 
 extension FilePanelViewController: NSTextFieldDelegate {
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if control === pathField {
+            return pathFieldCommand(commandSelector, textView: textView)
+        }
         if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
             renameCancelled = true
             view.window?.makeFirstResponder(tableView)
@@ -1110,7 +1209,11 @@ extension FilePanelViewController: NSTextFieldDelegate {
 
     func controlTextDidEndEditing(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
-        finishRename(field)
+        if field === pathField {
+            endPathEditing()
+        } else {
+            finishRename(field)
+        }
     }
 }
 
@@ -1208,5 +1311,146 @@ extension FilePanelViewController: QLPreviewPanelDataSource, QLPreviewPanelDeleg
     func previewPanel(_ panel: QLPreviewPanel!, transitionImageFor item: QLPreviewItem!, contentRect: UnsafeMutablePointer<NSRect>!) -> Any! {
         guard let url = item.previewItemURL else { return nil }
         return NSWorkspace.shared.icon(forFile: url.path)
+    }
+}
+
+// MARK: - Навигация: история, ввод пути
+
+extension FilePanelViewController {
+    func goBack() {
+        while let entry = backStack.popLast() {
+            guard FileManager.default.fileExists(atPath: entry.directory.path) else { continue }
+            let from = directory
+            forwardStack.append(HistoryEntry(directory: directory, cursorName: item(at: tableView.selectedRow)?.name))
+            // Возвращаемся в родительскую, а курсор тогда стоял на «..» — ставим его на папку, откуда пришли (как ⌫).
+            var cursor = entry.cursorName
+            if cursor == nil || cursor == "..", from.deletingLastPathComponent().standardizedFileURL == entry.directory.standardizedFileURL {
+                cursor = from.lastPathComponent
+            }
+            if navigate(to: entry.directory, selecting: cursor, reportErrors: false, recordHistory: false) { return }
+        }
+        updateHistoryButtons()
+        NSSound.beep()
+    }
+
+    func goForward() {
+        while let entry = forwardStack.popLast() {
+            guard FileManager.default.fileExists(atPath: entry.directory.path) else { continue }
+            backStack.append(HistoryEntry(directory: directory, cursorName: item(at: tableView.selectedRow)?.name))
+            if navigate(to: entry.directory, selecting: entry.cursorName, reportErrors: false, recordHistory: false) { return }
+        }
+        updateHistoryButtons()
+        NSSound.beep()
+    }
+
+    private func updateHistoryButtons() {
+        backButton.isEnabled = !backStack.isEmpty
+        forwardButton.isEnabled = !forwardStack.isEmpty
+    }
+
+    @objc private func backClicked() {
+        goBack()
+        focus()
+    }
+
+    @objc private func forwardClicked() {
+        goForward()
+        focus()
+    }
+
+    @objc private func pathLabelClicked() {
+        beginPathEditing()
+    }
+
+    /// ⌘L / клик по строке пути: путь становится полем ввода.
+    func beginPathEditing() {
+        pathField.stringValue = directory.path == "/" ? "/" : directory.path + "/"
+        pathField.isHidden = false
+        pathLabel.isHidden = true
+        view.window?.makeFirstResponder(pathField)
+        pathField.currentEditor()?.selectAll(nil)
+    }
+
+    private func endPathEditing() {
+        pathField.isHidden = true
+        pathLabel.isHidden = false
+    }
+
+    /// Enter — перейти, Esc — отмена, Tab — дополнить имя папки.
+    private func pathFieldCommand(_ selector: Selector, textView: NSTextView) -> Bool {
+        switch selector {
+        case #selector(NSResponder.cancelOperation(_:)):
+            endPathEditing()
+            focus()
+            return true
+        case #selector(NSResponder.insertNewline(_:)):
+            if openTypedPath(pathField.stringValue) {
+                endPathEditing()
+                focus()
+            } else {
+                NSSound.beep()
+            }
+            return true
+        case #selector(NSResponder.insertTab(_:)):
+            if let completed = FilePanelViewController.completePath(textView.string, relativeTo: directory) {
+                textView.string = completed
+                textView.setSelectedRange(NSRange(location: (completed as NSString).length, length: 0))
+            } else {
+                NSSound.beep()
+            }
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Папка — открыть; файл — открыть его папку и поставить на него курсор. Относительные пути — от текущей папки.
+    private func openTypedPath(_ input: String) -> Bool {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        let url = (expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded) : directory.appendingPathComponent(expanded)).standardizedFileURL
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return false }
+        if isDirectory.boolValue {
+            return navigate(to: url)
+        }
+        return navigate(to: url.deletingLastPathComponent(), selecting: url.lastPathComponent)
+    }
+
+    /// Дополнение по Tab: одна подходящая папка — дописываем её имя и «/», несколько — общее начало.
+    static func completePath(_ input: String, relativeTo base: URL) -> String? {
+        let expanded = (input as NSString).expandingTildeInPath
+        let absolute = expanded.hasPrefix("/") ? expanded : base.appendingPathComponent(expanded).path
+        // Слэш в конце смотрим по набранному: URL.path его отбрасывает.
+        let endsWithSlash = input.hasSuffix("/")
+        let parent = endsWithSlash ? absolute : (absolute as NSString).deletingLastPathComponent
+        let prefix = endsWithSlash ? "" : (absolute as NSString).lastPathComponent
+
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: parent) else { return nil }
+        let matches = names
+            .filter { $0.lowercased().hasPrefix(prefix.lowercased()) && (prefix.hasPrefix(".") || !$0.hasPrefix(".")) }
+            .filter { name in
+                var isDirectory: ObjCBool = false
+                return FileManager.default.fileExists(atPath: (parent as NSString).appendingPathComponent(name), isDirectory: &isDirectory) && isDirectory.boolValue
+            }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        guard let first = matches.first else { return nil }
+
+        // Сохраняем то, что пользователь уже набрал (~/…, относительный путь), меняем только последнюю часть.
+        let typedParent = endsWithSlash ? input : (input as NSString).deletingLastPathComponent
+        let join = { (name: String) -> String in
+            if typedParent.isEmpty { return name }
+            return typedParent.hasSuffix("/") ? typedParent + name : typedParent + "/" + name
+        }
+        if matches.count == 1 {
+            return join(first) + "/"
+        }
+        var common = first
+        for name in matches.dropFirst() {
+            while !name.lowercased().hasPrefix(common.lowercased()) { common.removeLast() }
+        }
+        return common.count > prefix.count ? join(common) : nil
     }
 }

@@ -11,6 +11,8 @@ final class PanelTableView: NSTableView {
     var onExtendRangeToRow: ((Int) -> Void)?
     /// Правый клик / ⌃-клик: меню для строки (`-1` — пустое место).
     var onContextMenu: ((Int) -> NSMenu?)?
+    /// Средний клик по строке (папку — открыть в новой вкладке).
+    var onMiddleClick: ((Int) -> Void)?
     /// Что тащить, если потянуть за строку: для выделенного файла — все выделенные.
     /// `nil` или один файл — обычное перетаскивание строки таблицей.
     var dragURLsForRow: ((Int) -> [URL]?)?
@@ -77,6 +79,15 @@ final class PanelTableView: NSTableView {
         }
         let session = beginDraggingSession(with: items, event: event, source: self)
         session.draggingFormation = .pile
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        guard event.buttonNumber == 2 else {
+            super.otherMouseDown(with: event)
+            return
+        }
+        let clickedRow = row(at: convert(event.locationInWindow, from: nil))
+        if clickedRow >= 0 { onMiddleClick?(clickedRow) }
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

@@ -64,6 +64,19 @@ enum MainMenu {
         markMenu.addItem(withTitle: "Снять всё выделение", action: #selector(MainWindowController.unmarkAll(_:)), keyEquivalent: "a")
             .keyEquivalentModifierMask = [.command, .shift]
 
+        // Стрелки не назначаем пунктам меню: иначе меню перехватит ⌘↑ и т.п. в полях ввода.
+        let goMenu = submenu(in: mainMenu, title: "Переход")
+        goMenu.addItem(withTitle: "Назад", action: #selector(MainWindowController.goBack(_:)), keyEquivalent: "[")
+        goMenu.addItem(withTitle: "Вперёд", action: #selector(MainWindowController.goForward(_:)), keyEquivalent: "]")
+        goMenu.addItem(withTitle: "Вверх  (⌘↑, ⌫)", action: #selector(MainWindowController.goUp(_:)), keyEquivalent: "")
+        goMenu.addItem(.separator())
+        goMenu.addItem(withTitle: "Домой", action: #selector(MainWindowController.goHome(_:)), keyEquivalent: "h")
+            .keyEquivalentModifierMask = [.command, .shift]
+        goMenu.addItem(withTitle: "Корень диска  (⌘⇧↑)", action: #selector(MainWindowController.goToVolumeRoot(_:)), keyEquivalent: "")
+        goMenu.addItem(withTitle: "Папка другой панели", action: #selector(MainWindowController.goToOppositeDirectory(_:)), keyEquivalent: "\\")
+        goMenu.addItem(.separator())
+        goMenu.addItem(withTitle: "Ввести путь…", action: #selector(MainWindowController.editPath(_:)), keyEquivalent: "l")
+
         let viewMenu = submenu(in: mainMenu, title: "Вид")
         viewMenu.addItem(withTitle: "Показывать скрытые файлы", action: #selector(AppDelegate.toggleHiddenFiles(_:)), keyEquivalent: ".")
             .keyEquivalentModifierMask = [.command, .shift]

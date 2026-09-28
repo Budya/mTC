@@ -22,6 +22,13 @@ enum PanelCommand: String {
     case nextTab
     case previousTab
     /// Файловые операции.
+    case goBack
+    case goForward
+    case goHome
+    case goToVolumeRoot
+    case goToOppositeDirectory
+    case editPath
+    case openInNewTab
     case quickLook
     case edit
     case newFile
@@ -67,6 +74,9 @@ enum PanelKeyMap {
         KeyBinding(.code(kVK_UpArrow), .command, .goUp),
         KeyBinding(.code(kVK_Tab), .switchPanel),
         KeyBinding(.code(kVK_Tab), .shift, .switchPanel),
+        KeyBinding(.code(kVK_Return), .command, .openInNewTab),
+        KeyBinding(.code(kVK_UpArrow), [.command, .shift], .goToVolumeRoot),
+        // ⌘[ ⌘] ⌘⇧H ⌘\ ⌘L — через меню «Переход».
         KeyBinding(.code(kVK_Tab), .control, .nextTab),
         KeyBinding(.code(kVK_Tab), [.control, .shift], .previousTab),
 

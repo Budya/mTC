@@ -126,6 +126,16 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
         filePanelRequestsNewDirectory(panel(for: activeSide))
     }
 
+    // MARK: Переход
+
+    @objc func goBack(_ sender: Any?) { panel(for: activeSide).perform(.goBack) }
+    @objc func goForward(_ sender: Any?) { panel(for: activeSide).perform(.goForward) }
+    @objc func goUp(_ sender: Any?) { panel(for: activeSide).perform(.goUp) }
+    @objc func goHome(_ sender: Any?) { panel(for: activeSide).perform(.goHome) }
+    @objc func goToVolumeRoot(_ sender: Any?) { panel(for: activeSide).perform(.goToVolumeRoot) }
+    @objc func goToOppositeDirectory(_ sender: Any?) { panel(for: activeSide).perform(.goToOppositeDirectory) }
+    @objc func editPath(_ sender: Any?) { panel(for: activeSide).perform(.editPath) }
+
     /// F3 / ⌘Y: просмотр (Quick Look).
     @objc func quickLook(_ sender: Any?) {
         panel(for: activeSide).perform(.quickLook)
@@ -301,6 +311,14 @@ extension MainWindowController: FilePanelDelegate {
 
     func filePanel(_ panel: FilePanelViewController, requestsTabOffset offset: Int) {
         side(for: panel.side).selectTab(offset: offset)
+    }
+
+    func filePanel(_ panel: FilePanelViewController, requestsNewTabWith directory: URL) {
+        side(for: panel.side).newTab(directory: directory)
+    }
+
+    func filePanelOppositeDirectory(_ panel: FilePanelViewController) -> URL? {
+        oppositePanel(of: panel).directory
     }
 
     func filePanelRequestsNewDirectory(_ panel: FilePanelViewController) {

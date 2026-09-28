@@ -91,9 +91,20 @@ final class PanelSideViewController: NSViewController {
 
     /// Новая вкладка с той же папкой (без выделения), сразу после текущей.
     func newTab() {
+        newTab(tab: {
+            var tab = panel.snapshot()
+            tab.marked = []
+            return tab
+        }())
+    }
+
+    /// Новая вкладка с папкой `directory` (⌘↵ / средний клик по папке); история у неё своя, пустая.
+    func newTab(directory: URL) {
+        newTab(tab: PanelTab(directory: directory, sortKey: panel.snapshot().sortKey, sortAscending: panel.snapshot().sortAscending))
+    }
+
+    private func newTab(tab: PanelTab) {
         storeCurrentTab()
-        var tab = panel.snapshot()
-        tab.marked = []
         tabs.insert(tab, at: activeIndex + 1)
         activeIndex += 1
         panel.restore(tab)
