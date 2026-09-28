@@ -39,6 +39,8 @@ enum PanelCommand: String {
     case rename
     case moveToTrash
     case deletePermanently
+    case extractArchive
+    case createArchive
     /// Команды окна — панель передаёт их окну.
     case refresh
     case toggleHiddenFiles

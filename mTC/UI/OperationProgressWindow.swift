@@ -111,7 +111,9 @@ final class OperationProgressWindowController: NSWindowController {
             : Double(progress.copiedFiles) / Double(max(progress.totalFiles, 1))
         currentLabel.stringValue = progress.currentName
 
-        var details = "\(bytes(progress.copiedBytes)) из \(bytes(progress.totalBytes)) · файлов \(progress.copiedFiles) из \(progress.totalFiles)"
+        // Число файлов заранее известно не всегда (распаковка) — тогда показываем только сколько уже готово.
+        let files = progress.totalFiles > 0 ? "файлов \(progress.copiedFiles) из \(progress.totalFiles)" : "файлов: \(progress.copiedFiles)"
+        var details = "\(bytes(progress.copiedBytes)) из \(bytes(progress.totalBytes)) · \(files)"
         if let copyStartedAt, Date().timeIntervalSince(copyStartedAt) > 1 {
             let speed = Double(progress.copiedBytes) / Date().timeIntervalSince(copyStartedAt)
             details += " · \(bytes(Int64(speed)))/с"

@@ -89,7 +89,7 @@ extension MainWindowController {
         operation.start()
     }
 
-    private static func askConflict(
+    static func askConflict(
         _ conflict: CopyOperation.Conflict,
         mode: CopyOperation.Mode,
         on window: NSWindow,

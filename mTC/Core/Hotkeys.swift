@@ -49,6 +49,9 @@ enum CommandCatalog {
         CommandInfo(command: .moveToTrash, title: "В Корзину", category: "Файлы", defaults: ["f8", "delete", "cmd+backspace"]),
         CommandInfo(command: .deletePermanently, title: "Удалить насовсем", category: "Файлы", defaults: ["shift+f8", "shift+delete", "alt+cmd+backspace"]),
 
+        CommandInfo(command: .createArchive, title: "Упаковать", category: "Архивы", defaults: ["alt+f5", "alt+cmd+a"]),
+        CommandInfo(command: .extractArchive, title: "Распаковать сюда", category: "Архивы", defaults: ["alt+f9", "alt+cmd+x"]),
+
         CommandInfo(command: .toggleHiddenFiles, title: "Показать / скрыть скрытые файлы", category: "Вид", defaults: ["shift+cmd+."]),
 
         CommandInfo(command: .showHideWindow, title: "Показать / скрыть mTC из любой программы", category: "Глобальные", defaults: ["ctrl+alt+t"]),

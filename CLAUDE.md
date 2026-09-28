@@ -9,7 +9,7 @@
 - **Никакой платной подписи, нотаризации и App Store.** Только ad-hoc (`CODE_SIGN_IDENTITY = "-"`). Про карантин и `xattr` написано в README.
 - **Только arm64** (у всех M1+), macOS 14+.
 - **Всё пишем в `mTC-data/` рядом с `.app`.** В `~/Library` ничего не пишем: никаких `UserDefaults` для своих данных, autosave окон и state restoration.
-- **Без внешних зависимостей**, только системные фреймворки.
+- **Без внешних зависимостей**, только системные фреймворки и библиотеки (архивы — системная libarchive через свои объявления в `mTC/Support/libarchive.h`).
 
 ## Как работаем
 - Шаги делаем по одному. После каждого пересобираем, перезапускаем пробную копию, пользователь проверяет руками и даёт замечания.
@@ -33,5 +33,5 @@
 - `mTC/App`: `main.swift`, `AppDelegate` (жизненный цикл, строка меню, автозагрузка, диалоги проблем с папкой данных), `MainMenu`.
 - `mTC/Core`: `DataLocation`, `JSONStore` (слияние с умолчаниями, атомарная отложенная запись), `Models` (`AppSettings` → `settings.json`, `AppState` → `state.json`), `KeyCombo`, `Hotkeys` (+ `CommandCatalog`, → `hotkeys.json`), `InstanceLock`.
 - `mTC/System`: `StatusBarController`, `GlobalHotKey` (Carbon), `LoginItem`, `FloppyIcon`.
-- `mTC/FileSystem`: `FileItem`, `DirectoryLister`, `DirectorySize` (+ `CancellationFlag`), `FileMask`, `IconProvider`, `DirectoryWatcher` (FSEvents), `Volumes`, `FileOperations` (создание папок, `uniqueURL`, разбор пути копирования, удаление), `CopyOperation` (фоновое копирование и перемещение).
-- `mTC/UI`: `MainWindowController` (+`+Copy`, `+Edit`: две стороны в `NSSplitView`, панель F-клавиш, диалоги маски/удаления/копирования), `PanelSideViewController` + `TabBarView` (вкладки), `FilePanelViewController` (курсор, отметки, размеры папок, контекстное меню), `DriveBar`, `PanelTableView` + `PanelCellView`, `PanelCommand` (команды и клавиши), `FunctionKeyBar`, `TextPrompt` (+ `addCancelButton`), `OperationProgressWindowController`, `ActionMenuItem`, `HotkeysWindowController`.
+- `mTC/FileSystem`: `FileItem`, `DirectoryLister`, `DirectorySize` (+ `CancellationFlag`), `FileMask`, `IconProvider`, `DirectoryWatcher` (FSEvents), `Volumes`, `FileOperations` (создание папок, `uniqueURL`, разбор пути копирования, удаление), `CopyOperation` (фоновое копирование и перемещение), `ArchiveExtractor` (`ArchiveFormats`, `ArchiveExtractOperation`), `ArchiveCreator` (`ArchiveKind`, `ArchiveCreateOperation`).
+- `mTC/UI`: `MainWindowController` (+`+Copy`, `+Edit`, `+Archive`: две стороны в `NSSplitView`, панель F-клавиш, диалоги маски/удаления/копирования), `PanelSideViewController` + `TabBarView` (вкладки), `FilePanelViewController` (курсор, отметки, размеры папок, контекстное меню), `DriveBar`, `PanelTableView` + `PanelCellView`, `PanelCommand` (команды и клавиши), `FunctionKeyBar`, `TextPrompt` (+ `addCancelButton`), `OperationProgressWindowController`, `ActionMenuItem`, `HotkeysWindowController`, `ArchiveDialog`.

@@ -29,6 +29,10 @@ struct AppState: Codable {
     /// Последняя маска в диалоге «Выделить по маске».
     var lastSelectionMask = "*"
     var maskIncludesDirectories = false
+    /// Последний выбор в диалоге «Упаковать…».
+    var lastArchiveKind = ArchiveKind.zip
+    var archiveToOtherPanel = false
+    var lastZipEncryption = ZipEncryption.zipCrypto
 }
 
 /// Вкладки одной панели в `state.json`.

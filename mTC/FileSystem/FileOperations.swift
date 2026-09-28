@@ -6,6 +6,7 @@ enum FileOperationError: LocalizedError {
     case invalidName(String)
     case copyIntoItself(String)
     case alreadyExists(String)
+    case unsafeArchiveEntries(Int)
 
     var errorDescription: String? {
         switch self {
@@ -13,6 +14,7 @@ enum FileOperationError: LocalizedError {
         case .invalidName(let name): return "Недопустимое имя «\(name)»."
         case .copyIntoItself(let name): return "Нельзя поместить папку «\(name)» внутрь неё самой."
         case .alreadyExists(let name): return "«\(name)» уже существует."
+        case .unsafeArchiveEntries(let count): return "Пропущено элементов с небезопасным путём (.. или ссылка наружу): \(count)."
         }
     }
 }

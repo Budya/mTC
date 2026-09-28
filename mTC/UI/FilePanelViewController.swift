@@ -27,6 +27,10 @@ protocol FilePanelDelegate: AnyObject {
     func filePanelOppositeDirectory(_ panel: FilePanelViewController) -> URL?
     /// Файлы перетащили в панель (из другой панели или из Finder).
     func filePanel(_ panel: FilePanelViewController, requestsDropOf urls: [URL], into directory: URL, move: Bool)
+    /// Упаковать `targets` в архив (⌥F5 / контекстное меню).
+    func filePanel(_ panel: FilePanelViewController, requestsPackOf targets: [FileItem])
+    /// Распаковать архивы из `targets` в текущую папку (⌥F9 / контекстное меню).
+    func filePanel(_ panel: FilePanelViewController, requestsExtractOf targets: [FileItem])
     /// Удалить `targets` (F8 / ⇧F8 / контекстное меню).
     func filePanel(_ panel: FilePanelViewController, requestsDeletionOf targets: [FileItem], permanently: Bool)
 }
@@ -365,6 +369,8 @@ final class FilePanelViewController: NSViewController {
         case .copyToOtherPanel: delegate?.filePanel(self, requestsCopyOf: operationTargets())
         case .moveToOtherPanel: delegate?.filePanel(self, requestsMoveOf: operationTargets())
         case .rename: beginRename()
+        case .extractArchive: delegate?.filePanel(self, requestsExtractOf: operationTargets())
+        case .createArchive: delegate?.filePanel(self, requestsPackOf: operationTargets())
         case .moveToTrash: delegate?.filePanel(self, requestsDeletionOf: operationTargets(), permanently: false)
         case .deletePermanently: delegate?.filePanel(self, requestsDeletionOf: operationTargets(), permanently: true)
         }
@@ -842,6 +848,17 @@ final class FilePanelViewController: NSViewController {
             })
             if targets.count == 1 {
                 menu.addItem(ActionMenuItem("Переименовать") { [weak self] in self?.beginRename() })
+            }
+            menu.addItem(.separator())
+            menu.addItem(ActionMenuItem(Self.withHint("Упаковать…", .createArchive)) { [weak self] in
+                guard let self else { return }
+                self.delegate?.filePanel(self, requestsPackOf: targets)
+            })
+            if targets.contains(where: { $0.kind == .file && ArchiveFormats.isArchive($0.url) }) {
+                menu.addItem(ActionMenuItem(Self.withHint("Распаковать сюда", .extractArchive)) { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.filePanel(self, requestsExtractOf: targets)
+                })
             }
             menu.addItem(.separator())
             menu.addItem(ActionMenuItem("Переместить в Корзину" + countSuffix) { [weak self] in

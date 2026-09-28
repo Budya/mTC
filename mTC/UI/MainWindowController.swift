@@ -3,7 +3,7 @@ import AppKit
 /// Главное окно с двумя панелями.
 final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitViewDelegate, NSMenuItemValidation {
     let settings: JSONStore<AppSettings>
-    private let state: JSONStore<AppState>
+    let state: JSONStore<AppState>
     private let splitView = NSSplitView()
     private let leftSide: PanelSideViewController
     private let rightSide: PanelSideViewController
@@ -218,6 +218,18 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     /// ⇧F6 / F2 / ⌘⇧R: переименовать файл под курсором прямо в списке.
     @objc func renameItem(_ sender: Any?) {
         panel(for: activeSide).beginRename()
+    }
+
+    /// ⌥F5: упаковать выбранное в архив.
+    @objc func packItems(_ sender: Any?) {
+        let panel = panel(for: activeSide)
+        filePanel(panel, requestsPackOf: panel.operationTargets())
+    }
+
+    /// ⌥F9: распаковать выбранные архивы в текущую папку.
+    @objc func extractArchives(_ sender: Any?) {
+        let panel = panel(for: activeSide)
+        filePanel(panel, requestsExtractOf: panel.operationTargets())
     }
 
     /// F8 / ⌘⌫: в Корзину.

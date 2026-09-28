@@ -38,6 +38,8 @@ enum MainMenu {
         fileMenu.addItem(item(.copyToOtherPanel, #selector(MainWindowController.copyToOtherPanel(_:)), title: "Копировать в другую панель…"))
         fileMenu.addItem(item(.moveToOtherPanel, #selector(MainWindowController.moveToOtherPanel(_:)), title: "Переместить в другую панель…"))
         fileMenu.addItem(item(.rename, #selector(MainWindowController.renameItem(_:))))
+        fileMenu.addItem(item(.createArchive, #selector(MainWindowController.packItems(_:)), title: "Упаковать…"))
+        fileMenu.addItem(item(.extractArchive, #selector(MainWindowController.extractArchives(_:))))
         fileMenu.addItem(item(.moveToTrash, #selector(MainWindowController.moveToTrash(_:)), title: "Переместить в Корзину"))
         fileMenu.addItem(item(.deletePermanently, #selector(MainWindowController.deletePermanently(_:)), title: "Удалить насовсем…"))
         fileMenu.addItem(.separator())

@@ -185,6 +185,8 @@
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				INFOPLIST_KEY_NSRemovableVolumesUsageDescription = "mTC показывает содержимое внешних дисков.";
 				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = "-larchive";
+				SWIFT_OBJC_BRIDGING_HEADER = "mTC/Support/mTC-Bridging-Header.h";
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mtc.mTC;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -213,6 +215,8 @@
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				INFOPLIST_KEY_NSRemovableVolumesUsageDescription = "mTC показывает содержимое внешних дисков.";
 				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = "-larchive";
+				SWIFT_OBJC_BRIDGING_HEADER = "mTC/Support/mTC-Bridging-Header.h";
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mtc.mTC;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
