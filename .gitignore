@@ -1,0 +1,8 @@
+.DS_Store
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Настройки при запуске из Xcode (см. MTC_DATA_DIR в схеме)
+mTC-data-dev/
