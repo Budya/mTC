@@ -25,13 +25,13 @@
   ```
 - `build/stage/` каждый раз стирается скриптом, поэтому не запускай оттуда.
 - Новые `.swift` файлы в `mTC/` подхватываются проектом сами (synchronized group), править `project.pbxproj` не нужно.
-- Клавиши панели назначаются через `PanelCommand` и `PanelKeyMap` ([mTC/UI/PanelCommand.swift](mTC/UI/PanelCommand.swift)), а не хардкодом в `keyDown`.
+- Горячие клавиши: новая команда = случай в `PanelCommand` + строка в `CommandCatalog` ([mTC/Core/Hotkeys.swift](mTC/Core/Hotkeys.swift)) с сочетаниями по умолчанию; пункты меню создавай через `MainMenu.item(_:_:)`, подсказки — через `Hotkeys.shared.hint(for:)`. Не хардкодь клавиши в `keyDown` и в названиях. Клавиши без ⌘ нельзя ставить пунктам меню (меню перехватит их в полях ввода) — `KeyCombo.menuKeyEquivalent` это учитывает.
 - В диалогах (`NSAlert`) кнопку отмены добавляй через `alert.addCancelButton()` ([TextPrompt.swift](mTC/UI/TextPrompt.swift)): так она закрывается по Esc. Обычный `addButton(withTitle: "Отмена")` Esc не ловит.
 - README.md служит инструкцией для коллег (он кладётся в zip). Таблицу клавиш в нём держим актуальной.
 
 ## Структура
 - `mTC/App`: `main.swift`, `AppDelegate` (жизненный цикл, строка меню, автозагрузка, диалоги проблем с папкой данных), `MainMenu`.
-- `mTC/Core`: `DataLocation`, `JSONStore` (слияние с умолчаниями, атомарная отложенная запись), `Models` (`AppSettings` → `settings.json`, `AppState` → `state.json`), `HotKeySpec`, `InstanceLock`.
+- `mTC/Core`: `DataLocation`, `JSONStore` (слияние с умолчаниями, атомарная отложенная запись), `Models` (`AppSettings` → `settings.json`, `AppState` → `state.json`), `KeyCombo`, `Hotkeys` (+ `CommandCatalog`, → `hotkeys.json`), `InstanceLock`.
 - `mTC/System`: `StatusBarController`, `GlobalHotKey` (Carbon), `LoginItem`, `FloppyIcon`.
 - `mTC/FileSystem`: `FileItem`, `DirectoryLister`, `DirectorySize` (+ `CancellationFlag`), `FileMask`, `IconProvider`, `DirectoryWatcher` (FSEvents), `Volumes`, `FileOperations` (создание папок, `uniqueURL`, разбор пути копирования, удаление), `CopyOperation` (фоновое копирование и перемещение).
-- `mTC/UI`: `MainWindowController` (+`+Copy`, `+Edit`: две стороны в `NSSplitView`, панель F-клавиш, диалоги маски/удаления/копирования), `PanelSideViewController` + `TabBarView` (вкладки), `FilePanelViewController` (курсор, отметки, размеры папок, контекстное меню), `DriveBar`, `PanelTableView` + `PanelCellView`, `PanelCommand` (команды и клавиши), `FunctionKeyBar`, `TextPrompt` (+ `addCancelButton`), `OperationProgressWindowController`, `ActionMenuItem`.
+- `mTC/UI`: `MainWindowController` (+`+Copy`, `+Edit`: две стороны в `NSSplitView`, панель F-клавиш, диалоги маски/удаления/копирования), `PanelSideViewController` + `TabBarView` (вкладки), `FilePanelViewController` (курсор, отметки, размеры папок, контекстное меню), `DriveBar`, `PanelTableView` + `PanelCellView`, `PanelCommand` (команды и клавиши), `FunctionKeyBar`, `TextPrompt` (+ `addCancelButton`), `OperationProgressWindowController`, `ActionMenuItem`, `HotkeysWindowController`.

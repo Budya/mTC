@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var mainWindow: MainWindowController!
     private var statusBar: StatusBarController!
     private var hotKey: GlobalHotKey?
+    private var hotkeysWindow: HotkeysWindowController?
     private var launchedAsLoginItem = false
 
     // MARK: - Жизненный цикл
@@ -39,13 +40,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         settings = JSONStore(fileURL: location.canPersist ? location.file("settings.json") : nil, defaultValue: AppSettings())
         state = JSONStore(fileURL: location.canPersist ? location.file("state.json") : nil, defaultValue: AppState())
+        Hotkeys.shared = Hotkeys(fileURL: location.canPersist ? location.file("hotkeys.json") : nil)
 
         NSApp.mainMenu = MainMenu.build()
         applyDockPolicy()
-        statusBar = StatusBarController(target: self, hotKey: settings.value.showWindowHotKey)
+        statusBar = StatusBarController(target: self)
         mainWindow = MainWindowController(settings: settings, state: state)
         registerGlobalHotKey()
         refreshLoginItemIfMoved()
+        NotificationCenter.default.addObserver(self, selector: #selector(hotkeysDidChange), name: Hotkeys.didChange, object: nil)
 
         DistributedNotificationCenter.default().addObserver(
             self,
@@ -56,6 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
         if location.problem != nil || (settings.value.showWindowAtLaunch && !launchedAsLoginItem) {
             showMainWindow(nil)
+        }
+        if !Hotkeys.shared.problems.isEmpty {
+            reportHotkeyProblems(Hotkeys.shared.problems)
         }
         if let problem = location.problem, !presentDataLocationProblem(problem) {
             NSApp.terminate(nil)
@@ -166,18 +172,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSApp.setActivationPolicy(settings.value.showInDock ? .regular : .accessory)
     }
 
+    /// Глобальная клавиша «показать/скрыть mTC» — из `hotkeys.json` (команда showHideWindow).
     private func registerGlobalHotKey() {
-        let spec = settings.value.showWindowHotKey
-        guard spec.enabled else { return }
-        guard let keyCode = spec.carbonKeyCode else {
-            NSLog("mTC: неизвестная клавиша «\(spec.key)» в showWindowHotKey")
-            return
-        }
-        hotKey = GlobalHotKey(keyCode: keyCode, modifiers: spec.carbonModifiers) { [weak self] in
+        hotKey = nil
+        guard let combo = Hotkeys.shared.combos(for: .showHideWindow).first, let keyCode = combo.carbonKeyCode else { return }
+        hotKey = GlobalHotKey(keyCode: keyCode, modifiers: combo.carbonModifiers) { [weak self] in
             self?.toggleMainWindow(nil)
         }
         if hotKey == nil {
-            NSLog("mTC: не удалось зарегистрировать горячую клавишу (возможно, она занята другим приложением)")
+            NSLog("mTC: не удалось зарегистрировать глобальную клавишу \(combo.displayString) (возможно, она занята другим приложением)")
+        }
+    }
+
+    @objc private func hotkeysDidChange() {
+        NSApp.mainMenu = MainMenu.build()
+        statusBar.rebuildMenu()
+        registerGlobalHotKey()
+    }
+
+    @objc func showHotkeys(_ sender: Any?) {
+        if hotkeysWindow == nil {
+            hotkeysWindow = HotkeysWindowController(hotkeys: Hotkeys.shared)
+        }
+        hotkeysWindow?.showWindow(nil)
+        hotkeysWindow?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+    }
+
+    private func reportHotkeyProblems(_ problems: [String]) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "В hotkeys.json есть ошибки"
+        alert.informativeText = problems.prefix(10).map { "• " + $0 }.joined(separator: "\n")
+            + (problems.count > 10 ? "\n… и ещё \(problems.count - 10)" : "")
+            + "\n\nЭти сочетания не действуют. Исправьте файл или откройте «Горячие клавиши…»."
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Горячие клавиши…")
+        if alert.runModal() == .alertSecondButtonReturn {
+            showHotkeys(nil)
         }
     }
 

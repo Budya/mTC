@@ -21,6 +21,8 @@ protocol FilePanelDelegate: AnyObject {
     func filePanelRequestsNewFile(_ panel: FilePanelViewController)
     /// ⌘↵ / средний клик по папке: открыть её в новой вкладке.
     func filePanel(_ panel: FilePanelViewController, requestsNewTabWith directory: URL)
+    /// Команды окна (обновить, вкладки, скрытые файлы) — панель передаёт их окну.
+    func filePanel(_ panel: FilePanelViewController, performWindowCommand command: PanelCommand)
     /// ⌘\\: папка другой панели (перейти в неё).
     func filePanelOppositeDirectory(_ panel: FilePanelViewController) -> URL?
     /// Файлы перетащили в панель (из другой панели или из Finder).
@@ -354,6 +356,8 @@ final class FilePanelViewController: NSViewController {
             if let item = item(at: tableView.selectedRow), item.isContainer {
                 delegate?.filePanel(self, requestsNewTabWith: item.url)
             }
+        case .refresh, .toggleHiddenFiles, .newTab, .closeTab, .showHideWindow:
+            delegate?.filePanel(self, performWindowCommand: command)
         case .quickLook: togglePreview()
         case .edit: delegate?.filePanel(self, requestsEditOf: operationTargets())
         case .newFile: delegate?.filePanelRequestsNewFile(self)
@@ -762,6 +766,11 @@ final class FilePanelViewController: NSViewController {
 
     // MARK: - Контекстное меню
 
+    /// «Просмотр  (F3)» — подсказка берётся из текущих горячих клавиш.
+    private static func withHint(_ title: String, _ command: PanelCommand) -> String {
+        Hotkeys.shared.hint(for: command).map { "\(title)  (\($0))" } ?? title
+    }
+
     /// Правый клик: по выделенному файлу — меню для всех выделенных,
     /// по невыделенному — только для него (курсор переходит на него), по «..» или пустому месту — общее меню.
     private func contextMenu(forRow row: Int) -> NSMenu {
@@ -781,7 +790,7 @@ final class FilePanelViewController: NSViewController {
         if targets.count == 1, let target = targets.first {
             menu.addItem(ActionMenuItem("Открыть") { [weak self] in self?.open(target) })
             if target.kind == .directory {
-                menu.addItem(ActionMenuItem("Открыть в новой вкладке  (⌘↵)") { [weak self] in
+                menu.addItem(ActionMenuItem(Self.withHint("Открыть в новой вкладке", .openInNewTab)) { [weak self] in
                     guard let self else { return }
                     self.delegate?.filePanel(self, requestsNewTabWith: target.url)
                 })
@@ -795,8 +804,8 @@ final class FilePanelViewController: NSViewController {
             menu.addItem(openWith)
         }
         if !targets.isEmpty {
-            menu.addItem(ActionMenuItem("Просмотр  (F3)") { [weak self] in self?.togglePreview() })
-            menu.addItem(ActionMenuItem("Редактировать  (F4)") { [weak self] in
+            menu.addItem(ActionMenuItem(Self.withHint("Просмотр", .quickLook)) { [weak self] in self?.togglePreview() })
+            menu.addItem(ActionMenuItem(Self.withHint("Редактировать", .edit)) { [weak self] in
                 guard let self else { return }
                 self.delegate?.filePanel(self, requestsEditOf: targets)
             })

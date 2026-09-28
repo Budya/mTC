@@ -7,7 +7,6 @@ struct AppSettings: Codable {
     var showHiddenFiles = false
     /// Показывать окно при обычном запуске (при автозапуске mTC всегда стартует свёрнутым в строку меню).
     var showWindowAtLaunch = true
-    var showWindowHotKey = HotKeySpec.showWindowDefault
     /// Спрашивать подтверждение перед перемещением в Корзину (удаление насовсем спрашивается всегда).
     var confirmMoveToTrash = true
     /// Редактор для F4: пусто — системный редактор текста; иначе имя программы, путь к .app или bundle id.

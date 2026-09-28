@@ -5,13 +5,18 @@ import AppKit
 /// Ещё не реализованные операции показаны неактивными.
 final class FunctionKeyBar: NSView {
     struct Key {
+        let command: PanelCommand
         let title: String
         let action: Selector?
     }
 
+    private var keys: [Key] = []
+    private var buttons: [NSButton] = []
+
     init(keys: [Key], target: AnyObject, accessories: [NSView] = []) {
         super.init(frame: .zero)
 
+        self.keys = keys
         let buttons = keys.map { key -> NSButton in
             let button = NSButton(title: key.title, target: target, action: key.action)
             button.controlSize = .small
@@ -21,6 +26,9 @@ final class FunctionKeyBar: NSView {
             button.isEnabled = key.action != nil
             return button
         }
+
+        self.buttons = buttons
+        refreshTitles()
 
         let keysStack = NSStackView(views: buttons)
         keysStack.orientation = .horizontal
@@ -45,4 +53,12 @@ final class FunctionKeyBar: NSView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) не поддерживается") }
+
+    /// «F5 Копировать»: перед названием — F-клавиша команды (или первое сочетание), как в Total Commander.
+    func refreshTitles() {
+        for (key, button) in zip(keys, buttons) {
+            let hint = Hotkeys.shared.hint(for: key.command)
+            button.title = hint.map { "\($0) \(key.title)" } ?? key.title
+        }
+    }
 }

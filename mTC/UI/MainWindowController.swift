@@ -13,6 +13,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     private var didRestoreSplit = false
     /// Кнопка-переключатель скрытых файлов справа на панели F-кнопок.
     private let hiddenFilesButton = NSButton()
+    private var keyBar: FunctionKeyBar!
 
     init(settings: JSONStore<AppSettings>, state: JSONStore<AppState>) {
         self.settings = settings
@@ -45,24 +46,24 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
         splitView.addArrangedSubview(leftSide.view)
         splitView.addArrangedSubview(rightSide.view)
 
-        let keyBar = FunctionKeyBar(keys: [
-            .init(title: "F3 Просмотр", action: #selector(quickLook(_:))),
-            .init(title: "F4 Правка", action: #selector(editItems(_:))),
-            .init(title: "F5 Копировать", action: #selector(copyToOtherPanel(_:))),
-            .init(title: "F6 Переместить", action: #selector(moveToOtherPanel(_:))),
-            .init(title: "F7 Новая папка", action: #selector(newDirectory(_:))),
-            .init(title: "F8 Удалить", action: #selector(moveToTrash(_:))),
+        keyBar = FunctionKeyBar(keys: [
+            .init(command: .quickLook, title: "Просмотр", action: #selector(quickLook(_:))),
+            .init(command: .edit, title: "Правка", action: #selector(editItems(_:))),
+            .init(command: .copyToOtherPanel, title: "Копировать", action: #selector(copyToOtherPanel(_:))),
+            .init(command: .moveToOtherPanel, title: "Переместить", action: #selector(moveToOtherPanel(_:))),
+            .init(command: .makeDirectory, title: "Новая папка", action: #selector(newDirectory(_:))),
+            .init(command: .moveToTrash, title: "Удалить", action: #selector(moveToTrash(_:))),
         ], target: self, accessories: [hiddenFilesButton])
 
-        let content = NSStackView(views: [splitView, keyBar])
+        let content = NSStackView(views: [splitView, keyBar!])
         content.orientation = .vertical
         content.spacing = 0
         content.distribution = .fill
-        for subview in [splitView, keyBar] {
+        for subview in [splitView, keyBar!] {
             subview.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
         }
         splitView.setContentHuggingPriority(.defaultLow, for: .vertical)
-        keyBar.setContentHuggingPriority(.required, for: .vertical)
+        keyBar!.setContentHuggingPriority(.required, for: .vertical)
         window.contentView = content
 
         for side in [leftSide, rightSide] {
@@ -81,6 +82,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
         hiddenFilesButton.action = #selector(toggleHiddenFiles(_:))
         hiddenFilesButton.widthAnchor.constraint(equalToConstant: 34).isActive = true
         updateHiddenFilesButton()
+        NotificationCenter.default.addObserver(forName: Hotkeys.didChange, object: nil, queue: .main) { [weak self] _ in
+            self?.keyBar.refreshTitles()
+        }
 
         restoreFrame()
         leftSide.restore(state.value.leftTabs, legacyPath: state.value.leftPath)
@@ -348,6 +352,16 @@ extension MainWindowController: FilePanelDelegate {
 
     func filePanel(_ panel: FilePanelViewController, requestsNewTabWith directory: URL) {
         side(for: panel.side).newTab(directory: directory)
+    }
+
+    func filePanel(_ panel: FilePanelViewController, performWindowCommand command: PanelCommand) {
+        switch command {
+        case .refresh: refreshPanels(nil)
+        case .toggleHiddenFiles: toggleHiddenFiles(nil)
+        case .newTab: newTab(nil)
+        case .closeTab: closeTab(nil)
+        default: break
+        }
     }
 
     func filePanelOppositeDirectory(_ panel: FilePanelViewController) -> URL? {

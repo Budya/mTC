@@ -19,7 +19,7 @@ final class PanelTableView: NSTableView {
     var onFocus: (() -> Void)?
 
     override func keyDown(with event: NSEvent) {
-        if let command = PanelKeyMap.command(for: event) {
+        if let command = Hotkeys.shared.command(for: event) {
             onCommand?(command)
         } else {
             super.keyDown(with: event)
@@ -94,9 +94,12 @@ final class PanelTableView: NSTableView {
         onContextMenu?(row(at: convert(event.locationInWindow, from: nil)))
     }
 
-    /// «Правка → Выделить всё» (⌘A): выделяет все файлы панели, повторное нажатие снимает выделение.
+    /// «Правка → Выделить всё» (⌘A) забирает ⌘A у панели — выполняем команду, назначенную на ⌘A
+    /// (по умолчанию «Выделить всё / снять»).
     override func selectAll(_ sender: Any?) {
-        onCommand?(.toggleMarkAll)
+        if let combo = KeyCombo(string: "cmd+a"), let command = Hotkeys.shared.command(for: combo) {
+            onCommand?(command)
+        }
     }
 
     /// NSTableView отключает «Выделить всё», когда `allowsMultipleSelection == false`,
