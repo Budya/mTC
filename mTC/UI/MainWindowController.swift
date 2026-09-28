@@ -2,7 +2,7 @@ import AppKit
 
 /// Главное окно с двумя панелями.
 final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitViewDelegate {
-    private let settings: JSONStore<AppSettings>
+    let settings: JSONStore<AppSettings>
     private let state: JSONStore<AppState>
     private let splitView = NSSplitView()
     private let leftSide: PanelSideViewController
@@ -45,7 +45,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
 
         let keyBar = FunctionKeyBar(keys: [
             .init(title: "F3 Просмотр", action: #selector(quickLook(_:))),
-            .init(title: "F4 Правка", action: nil),
+            .init(title: "F4 Правка", action: #selector(editItems(_:))),
             .init(title: "F5 Копировать", action: #selector(copyToOtherPanel(_:))),
             .init(title: "F6 Переместить", action: #selector(moveToOtherPanel(_:))),
             .init(title: "F7 Новая папка", action: #selector(newDirectory(_:))),
@@ -129,6 +129,31 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     /// F3 / ⌘Y: просмотр (Quick Look).
     @objc func quickLook(_ sender: Any?) {
         panel(for: activeSide).perform(.quickLook)
+    }
+
+    /// Меню «Файл → Открыть с помощью» строится при открытии — для файлов активной панели.
+    func populateOpenWithMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let panel = panel(for: activeSide)
+        let targets = panel.operationTargets()
+        if targets.isEmpty {
+            let none = NSMenuItem(title: "Нет выбранных файлов", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            menu.addItem(none)
+        } else {
+            panel.openWithItems(for: targets).forEach(menu.addItem)
+        }
+    }
+
+    /// F4 / ⌘E: открыть в редакторе.
+    @objc func editItems(_ sender: Any?) {
+        let panel = panel(for: activeSide)
+        filePanel(panel, requestsEditOf: panel.operationTargets())
+    }
+
+    /// ⇧F4 / ⌥⌘N: новый файл.
+    @objc func newFile(_ sender: Any?) {
+        filePanelRequestsNewFile(panel(for: activeSide))
     }
 
     /// F5 / ⌘⇧C: копировать в другую панель.

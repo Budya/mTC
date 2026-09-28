@@ -15,6 +15,10 @@ protocol FilePanelDelegate: AnyObject {
     func filePanel(_ panel: FilePanelViewController, requestsCopyOf targets: [FileItem])
     /// Переместить `targets` в другую панель (F6 / контекстное меню).
     func filePanel(_ panel: FilePanelViewController, requestsMoveOf targets: [FileItem])
+    /// F4: открыть `targets` в редакторе.
+    func filePanel(_ panel: FilePanelViewController, requestsEditOf targets: [FileItem])
+    /// ⇧F4: спросить имя нового файла.
+    func filePanelRequestsNewFile(_ panel: FilePanelViewController)
     /// Файлы перетащили в панель (из другой панели или из Finder).
     func filePanel(_ panel: FilePanelViewController, requestsDropOf urls: [URL], into directory: URL, move: Bool)
     /// Удалить `targets` (F8 / ⇧F8 / контекстное меню).
@@ -272,6 +276,8 @@ final class FilePanelViewController: NSViewController {
         case .previousTab: delegate?.filePanel(self, requestsTabOffset: -1)
         case .makeDirectory: delegate?.filePanelRequestsNewDirectory(self)
         case .quickLook: togglePreview()
+        case .edit: delegate?.filePanel(self, requestsEditOf: operationTargets())
+        case .newFile: delegate?.filePanelRequestsNewFile(self)
         case .closePreview: closePreview()
         case .copyToOtherPanel: delegate?.filePanel(self, requestsCopyOf: operationTargets())
         case .moveToOtherPanel: delegate?.filePanel(self, requestsMoveOf: operationTargets())
@@ -552,6 +558,83 @@ final class FilePanelViewController: NSViewController {
         return items.filter { $0.kind != .parent && marked.contains($0.name) }.map(\.url)
     }
 
+    // MARK: Открыть с помощью
+
+    /// Программы, которые умеют открыть все `targets`: по умолчанию — первой, остальные по имени;
+    /// в конце — «Другая программа…».
+    func openWithItems(for targets: [FileItem]) -> [NSMenuItem] {
+        let urls = targets.map(\.url)
+        guard let first = urls.first else { return [] }
+        let workspace = NSWorkspace.shared
+
+        var candidates = workspace.urlsForApplications(toOpen: first)
+        for url in urls.dropFirst() {
+            let supported = Set(workspace.urlsForApplications(toOpen: url).map(\.standardizedFileURL))
+            candidates = candidates.filter { supported.contains($0.standardizedFileURL) }
+        }
+        let defaultApp = workspace.urlForApplication(toOpen: first)?.standardizedFileURL
+
+        // Одна программа может лежать в нескольких местах — оставляем одну (по bundle id).
+        var seen = Set<String>()
+        var apps: [(url: URL, name: String, isDefault: Bool)] = []
+        for url in candidates {
+            let key = Bundle(url: url)?.bundleIdentifier ?? url.path
+            guard seen.insert(key).inserted else { continue }
+            let name = (FileManager.default.displayName(atPath: url.path) as NSString).deletingPathExtension
+            apps.append((url, name, url.standardizedFileURL == defaultApp))
+        }
+        apps.sort { a, b in
+            if a.isDefault != b.isDefault { return a.isDefault }
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+
+        var items: [NSMenuItem] = apps.map { app in
+            let item = ActionMenuItem(app.isDefault ? "\(app.name) (по умолчанию)" : app.name) {
+                workspace.open(urls, withApplicationAt: app.url, configuration: NSWorkspace.OpenConfiguration())
+            }
+            let icon = (workspace.icon(forFile: app.url.path).copy() as? NSImage) ?? NSImage()
+            icon.size = NSSize(width: 16, height: 16)
+            item.image = icon
+            return item
+        }
+        if items.isEmpty {
+            let none = NSMenuItem(title: "Нет подходящих программ", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            items.append(none)
+        }
+        items.append(.separator())
+        items.append(ActionMenuItem("Другая программа…") { [weak self] in self?.chooseApplication(for: urls) })
+        return items
+    }
+
+    private func chooseApplication(for urls: [URL]) {
+        let picker = NSOpenPanel()
+        picker.message = "Выберите программу, чтобы открыть " + (urls.count == 1 ? "«\(urls[0].lastPathComponent)»" : "\(urls.count) объектов")
+        picker.prompt = "Открыть"
+        picker.allowedContentTypes = [.application]
+        picker.directoryURL = URL(fileURLWithPath: "/Applications")
+        picker.canChooseDirectories = false
+        picker.allowsMultipleSelection = false
+
+        let open = { (response: NSApplication.ModalResponse) in
+            guard response == .OK, let app = picker.url else { return }
+            NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+        }
+        if let window = view.window {
+            picker.beginSheetModal(for: window) { [weak self] response in
+                open(response)
+                self?.focus()
+            }
+        } else {
+            open(picker.runModal())
+        }
+    }
+
+    /// Перечитывает папку и ставит курсор на файл (например, только что созданный).
+    func select(named name: String) {
+        navigate(to: directory, selecting: name, fallbackRow: tableView.selectedRow, reportErrors: false)
+    }
+
     /// Снимает выделение с файлов (например, после успешного копирования).
     func unmark(_ names: Set<String>) {
         setMarks(marked.subtracting(names))
@@ -609,7 +692,18 @@ final class FilePanelViewController: NSViewController {
             menu.addItem(ActionMenuItem("Открыть") { [weak self] in self?.open(target) })
         }
         if !targets.isEmpty {
+            let openWith = NSMenuItem(title: "Открыть с помощью", action: nil, keyEquivalent: "")
+            let submenu = NSMenu()
+            openWithItems(for: targets).forEach(submenu.addItem)
+            openWith.submenu = submenu
+            menu.addItem(openWith)
+        }
+        if !targets.isEmpty {
             menu.addItem(ActionMenuItem("Просмотр  (F3)") { [weak self] in self?.togglePreview() })
+            menu.addItem(ActionMenuItem("Редактировать  (F4)") { [weak self] in
+                guard let self else { return }
+                self.delegate?.filePanel(self, requestsEditOf: targets)
+            })
         }
         if !targets.isEmpty {
             menu.addItem(ActionMenuItem("Показать в Finder") {
@@ -625,6 +719,10 @@ final class FilePanelViewController: NSViewController {
         menu.addItem(ActionMenuItem("Новая папка…") { [weak self] in
             guard let self else { return }
             self.delegate?.filePanelRequestsNewDirectory(self)
+        })
+        menu.addItem(ActionMenuItem("Новый файл…") { [weak self] in
+            guard let self else { return }
+            self.delegate?.filePanelRequestsNewFile(self)
         })
 
         if !targets.isEmpty {

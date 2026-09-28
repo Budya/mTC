@@ -21,6 +21,14 @@ enum MainMenu {
 
         let fileMenu = submenu(in: mainMenu, title: "Файл")
         fileMenu.addItem(withTitle: "Просмотр  (F3)", action: #selector(MainWindowController.quickLook(_:)), keyEquivalent: "y")
+        let openWith = NSMenuItem(title: "Открыть с помощью", action: nil, keyEquivalent: "")
+        let openWithMenu = NSMenu(title: "Открыть с помощью")
+        openWithMenu.delegate = OpenWithMenuDelegate.shared
+        openWith.submenu = openWithMenu
+        fileMenu.addItem(openWith)
+        fileMenu.addItem(withTitle: "Редактировать  (F4)", action: #selector(MainWindowController.editItems(_:)), keyEquivalent: "e")
+        fileMenu.addItem(withTitle: "Новый файл…  (⇧F4)", action: #selector(MainWindowController.newFile(_:)), keyEquivalent: "n")
+            .keyEquivalentModifierMask = [.command, .option]
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Новая папка…  (F7)", action: #selector(MainWindowController.newDirectory(_:)), keyEquivalent: "n")
             .keyEquivalentModifierMask = [.command, .shift]
@@ -79,5 +87,19 @@ enum MainMenu {
         item.submenu = submenu
         menu.addItem(item)
         return submenu
+    }
+}
+
+/// Строит «Открыть с помощью» в главном меню в момент открытия — для файлов активной панели.
+final class OpenWithMenuDelegate: NSObject, NSMenuDelegate {
+    static let shared = OpenWithMenuDelegate()
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let controller = NSApp.windows.lazy.compactMap { $0.windowController as? MainWindowController }.first
+        if let controller {
+            controller.populateOpenWithMenu(menu)
+        } else {
+            menu.removeAllItems()
+        }
     }
 }

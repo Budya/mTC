@@ -86,10 +86,10 @@
 				};
 			};
 			buildConfigurationList = AA000000000000000000000B /* Build configuration list for PBXProject "mTC" */;
-			developmentRegion = en;
+			developmentRegion = ru;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				ru,
 				Base,
 			);
 			mainGroup = AA0000000000000000000004;

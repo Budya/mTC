@@ -1,4 +1,5 @@
-import Foundation
+import AppKit
+import UniformTypeIdentifiers
 
 enum FileOperationError: LocalizedError {
     case emptyName
@@ -55,6 +56,57 @@ enum FileOperations {
         try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
         if isAbsolute || components.count == 1 { return target }
         return parent.appendingPathComponent(components[0], isDirectory: true)
+    }
+}
+
+// MARK: - Новый файл
+
+extension FileOperations {
+    /// Создаёт пустой файл (можно с подпапками: `папка/файл.txt`). Если файл уже есть — ничего не делает
+    /// (как в Total Commander: ⇧F4 по существующему имени просто открывает его). Возвращает путь к файлу.
+    @discardableResult
+    static func createFile(named input: String, in parent: URL) throws -> URL {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw FileOperationError.emptyName }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        let url = expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded) : parent.appendingPathComponent(expanded)
+        let components = expanded.split(separator: "/")
+        guard !components.isEmpty, !components.contains(where: { $0 == "." || $0 == ".." }), !trimmed.hasSuffix("/") else {
+            throw FileOperationError.invalidName(trimmed)
+        }
+
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+            if isDirectory.boolValue { throw FileOperationError.alreadyExists(trimmed) }
+            return url
+        }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
+        }
+        return url
+    }
+
+    /// Программа-редактор из настройки `editor`: пусто — системный редактор текста;
+    /// путь к .app, bundle id (`com.microsoft.VSCode`) или имя (`Visual Studio Code`).
+    static func editorApplication(_ setting: String) -> URL? {
+        let value = setting.trimmingCharacters(in: .whitespacesAndNewlines)
+        let workspace = NSWorkspace.shared
+        if value.isEmpty {
+            return workspace.urlForApplication(toOpen: .plainText)
+        }
+        if value.hasPrefix("/") || value.hasPrefix("~") {
+            let url = URL(fileURLWithPath: (value as NSString).expandingTildeInPath)
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
+        if let url = workspace.urlForApplication(withBundleIdentifier: value) {
+            return url
+        }
+        let name = value.hasSuffix(".app") ? value : value + ".app"
+        let folders = ["/Applications", "/System/Applications", "/System/Applications/Utilities",
+                       "/Applications/Utilities", NSHomeDirectory() + "/Applications"]
+        return folders.map { URL(fileURLWithPath: $0).appendingPathComponent(name) }
+            .first { FileManager.default.fileExists(atPath: $0.path) }
     }
 }
 
