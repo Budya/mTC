@@ -45,6 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSApp.mainMenu = MainMenu.build()
         applyDockPolicy()
         statusBar = StatusBarController(target: self)
+        FileColors.shared = FileColors(rules: settings.value.fileColors)
+        for problem in FileColors.shared.invalidRules {
+            NSLog("mTC: settings.json, fileColors — не понял правило \(problem)")
+        }
         mainWindow = MainWindowController(settings: settings, state: state)
         registerGlobalHotKey()
         refreshLoginItemIfMoved()

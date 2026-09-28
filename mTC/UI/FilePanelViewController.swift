@@ -1100,6 +1100,7 @@ extension FilePanelViewController: NSTableViewDataSource, NSTableViewDelegate {
         cell.textField?.stringValue = text
         cell.isDimmed = item.isHidden
         cell.isMarked = marked.contains(item.name)
+        cell.tint = FileColors.shared.color(for: item)
         return cell
     }
 

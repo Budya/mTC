@@ -11,6 +11,8 @@ struct AppSettings: Codable {
     var confirmMoveToTrash = true
     /// Редактор для F4: пусто — системный редактор текста; иначе имя программы, путь к .app или bundle id.
     var editor = ""
+    /// Раскраска файлов по маскам (`FileColorRule`): первое совпавшее правило. Пустой список — без цвета.
+    var fileColors = FileColorRule.defaults
 }
 
 /// `mTC-data/state.json`: то, что приложение запоминает само.

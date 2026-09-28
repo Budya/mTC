@@ -125,6 +125,8 @@ final class PanelTableView: NSTableView {
 final class PanelCellView: NSTableCellView {
     var isMarked = false { didSet { updateAppearance() } }
     var isDimmed = false { didSet { updateAppearance() } }
+    /// Цвет по типу файла (`FileColors`); отметка и курсор важнее.
+    var tint: NSColor? { didSet { updateAppearance() } }
 
     override var backgroundStyle: NSView.BackgroundStyle {
         didSet { updateAppearance() }
@@ -138,7 +140,9 @@ final class PanelCellView: NSTableCellView {
         } else if isMarked {
             textField.textColor = .systemRed
         } else {
-            textField.textColor = isDimmed ? .secondaryLabelColor : .labelColor
+            textField.textColor = isDimmed
+                ? tint?.withAlphaComponent(0.6) ?? .secondaryLabelColor
+                : tint ?? .labelColor
         }
         textField.font = .systemFont(ofSize: NSFont.systemFontSize, weight: isMarked ? .semibold : .regular)
     }
