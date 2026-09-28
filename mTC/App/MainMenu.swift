@@ -20,6 +20,8 @@ enum MainMenu {
         appMenu.addItem(withTitle: "Выйти из mTC", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let fileMenu = submenu(in: mainMenu, title: "Файл")
+        fileMenu.addItem(withTitle: "Просмотр  (F3)", action: #selector(MainWindowController.quickLook(_:)), keyEquivalent: "y")
+        fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Новая папка…  (F7)", action: #selector(MainWindowController.newDirectory(_:)), keyEquivalent: "n")
             .keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(withTitle: "Копировать в другую панель…  (F5)", action: #selector(MainWindowController.copyToOtherPanel(_:)), keyEquivalent: "c")

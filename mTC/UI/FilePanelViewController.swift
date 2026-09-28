@@ -1,4 +1,5 @@
 import AppKit
+import Quartz
 
 protocol FilePanelDelegate: AnyObject {
     func filePanelDidBecomeActive(_ panel: FilePanelViewController)
@@ -80,6 +81,10 @@ final class FilePanelViewController: NSViewController {
     private var renameCancelled = false
     /// Пока идёт переименование, обновление откладываем — иначе таблица пересоздаст ячейку с полем ввода.
     private var reloadPendingAfterRename = false
+
+    /// Quick Look (F3): что сейчас показываем и управляет ли просмотром эта панель.
+    private var previewItems: [URL] = []
+    private var isPreviewController = false
 
     /// Куда и как бросят перетаскиваемое (вычисляется при наведении).
     private var dropTarget: URL?
@@ -266,6 +271,8 @@ final class FilePanelViewController: NSViewController {
         case .nextTab: delegate?.filePanel(self, requestsTabOffset: 1)
         case .previousTab: delegate?.filePanel(self, requestsTabOffset: -1)
         case .makeDirectory: delegate?.filePanelRequestsNewDirectory(self)
+        case .quickLook: togglePreview()
+        case .closePreview: closePreview()
         case .copyToOtherPanel: delegate?.filePanel(self, requestsCopyOf: operationTargets())
         case .moveToOtherPanel: delegate?.filePanel(self, requestsMoveOf: operationTargets())
         case .rename: beginRename()
@@ -600,6 +607,9 @@ final class FilePanelViewController: NSViewController {
 
         if targets.count == 1, let target = targets.first {
             menu.addItem(ActionMenuItem("Открыть") { [weak self] in self?.open(target) })
+        }
+        if !targets.isEmpty {
+            menu.addItem(ActionMenuItem("Просмотр  (F3)") { [weak self] in self?.togglePreview() })
         }
         if !targets.isEmpty {
             menu.addItem(ActionMenuItem("Показать в Finder") {
@@ -941,6 +951,7 @@ extension FilePanelViewController: NSTableViewDataSource, NSTableViewDelegate {
 
     /// Курсор сдвинули обычным способом (клик, стрелки, поиск по буквам) — он становится новым якорем диапазона.
     func tableViewSelectionDidChange(_ notification: Notification) {
+        if isPreviewController { updatePreviewItems() }
         guard !isExtendingRange else { return }
         resetRange(anchor: tableView.selectedRow)
     }
@@ -1002,5 +1013,102 @@ extension FilePanelViewController: NSTextFieldDelegate {
     func controlTextDidEndEditing(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
         finishRename(field)
+    }
+}
+
+// MARK: - Quick Look (F3)
+
+extension FilePanelViewController: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+    /// F3 / ⌘Y: открыть или закрыть просмотр.
+    func togglePreview() {
+        guard let panel = QLPreviewPanel.shared() else { return }
+        if panel.isVisible {
+            panel.orderOut(nil)
+            return
+        }
+        focus()
+        guard !computePreviewItems().urls.isEmpty else { return }
+        // orderFront, а не makeKey: главное окно остаётся активным, стрелки двигают курсор в панели.
+        panel.orderFront(nil)
+        panel.updateController()
+    }
+
+    func closePreview() {
+        if QLPreviewPanel.sharedPreviewPanelExists(), let panel = QLPreviewPanel.shared(), panel.isVisible {
+            panel.orderOut(nil)
+        }
+    }
+
+    /// Курсор на выделенном файле при нескольких выделенных — показываем все выделенные, иначе — файл под курсором.
+    private func computePreviewItems() -> (urls: [URL], index: Int) {
+        guard let cursor = item(at: tableView.selectedRow), cursor.kind != .parent else { return ([], 0) }
+        if marked.contains(cursor.name), marked.count > 1 {
+            let markedItems = items.filter { $0.kind != .parent && marked.contains($0.name) }
+            return (markedItems.map(\.url), markedItems.firstIndex { $0.name == cursor.name } ?? 0)
+        }
+        return ([cursor.url], 0)
+    }
+
+    /// Просмотр следует за курсором. На «..» оставляем то, что было.
+    private func updatePreviewItems() {
+        let (urls, index) = computePreviewItems()
+        guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
+        if urls != previewItems {
+            previewItems = urls
+            panel.reloadData()
+        }
+        if panel.currentPreviewItemIndex != index {
+            panel.currentPreviewItemIndex = index
+        }
+    }
+
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        true
+    }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        isPreviewController = true
+        panel.dataSource = self
+        panel.delegate = self
+        previewItems = []
+        updatePreviewItems()
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        isPreviewController = false
+        panel.dataSource = nil
+        panel.delegate = nil
+    }
+
+    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+        previewItems.count
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        previewItems[index] as NSURL
+    }
+
+    /// Если окно просмотра в фокусе (по нему кликнули) — клавиши всё равно управляют панелью.
+    func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
+        guard event.type == .keyDown else { return false }
+        tableView.keyDown(with: event)
+        return true
+    }
+
+    /// Окно просмотра «вырастает» из иконки файла.
+    func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: QLPreviewItem!) -> NSRect {
+        guard let url = item.previewItemURL,
+              let row = items.firstIndex(where: { $0.url == url }),
+              let window = view.window,
+              let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let imageView = cell.imageView else { return .zero }
+        let rect = imageView.convert(imageView.bounds, to: nil)
+        guard tableView.visibleRect.intersects(tableView.convert(rect, from: nil)) else { return .zero }
+        return window.convertToScreen(rect)
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, transitionImageFor item: QLPreviewItem!, contentRect: UnsafeMutablePointer<NSRect>!) -> Any! {
+        guard let url = item.previewItemURL else { return nil }
+        return NSWorkspace.shared.icon(forFile: url.path)
     }
 }

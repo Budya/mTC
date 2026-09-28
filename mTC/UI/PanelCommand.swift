@@ -22,6 +22,9 @@ enum PanelCommand: String {
     case nextTab
     case previousTab
     /// Файловые операции.
+    case quickLook
+    /// Esc: закрыть просмотр, если открыт.
+    case closePreview
     case makeDirectory
     case copyToOtherPanel
     case moveToOtherPanel
@@ -73,6 +76,8 @@ enum PanelKeyMap {
         KeyBinding(.character("-"), .unmarkByMask),
         KeyBinding(.character("*"), .invertMarks),
 
+        KeyBinding(.code(kVK_F3), .quickLook),
+        KeyBinding(.code(kVK_Escape), .closePreview),
         KeyBinding(.code(kVK_F5), .copyToOtherPanel),
         KeyBinding(.code(kVK_F6), .moveToOtherPanel),
         KeyBinding(.code(kVK_F6), .shift, .rename),

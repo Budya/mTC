@@ -44,7 +44,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
         splitView.addArrangedSubview(rightSide.view)
 
         let keyBar = FunctionKeyBar(keys: [
-            .init(title: "F3 Просмотр", action: nil),
+            .init(title: "F3 Просмотр", action: #selector(quickLook(_:))),
             .init(title: "F4 Правка", action: nil),
             .init(title: "F5 Копировать", action: #selector(copyToOtherPanel(_:))),
             .init(title: "F6 Переместить", action: #selector(moveToOtherPanel(_:))),
@@ -124,6 +124,11 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, NSSplitV
     /// F7 / ⌘⇧N: новая папка в активной панели.
     @objc func newDirectory(_ sender: Any?) {
         filePanelRequestsNewDirectory(panel(for: activeSide))
+    }
+
+    /// F3 / ⌘Y: просмотр (Quick Look).
+    @objc func quickLook(_ sender: Any?) {
+        panel(for: activeSide).perform(.quickLook)
     }
 
     /// F5 / ⌘⇧C: копировать в другую панель.
